@@ -1,0 +1,13 @@
+{
+    "payload": {
+        "issuer": "did:eth:0x2aD14D61Fc548dd1b44aCC0b028586e932a5767C",
+        "issuer_address": "0x2aD14D61Fc548dd1b44aCC0b028586e932a5767C",
+        "holder": "did:eth:0xd5fd6001B110e971132056E0337986031eA41AED",
+        "claims": {
+            "access_level": "researcher",
+            "clearance": "high"
+        },
+        "issuanceDate": 1768046054.849822
+    },
+    "signature": "7e630469e4a1dbd35bdfa8e4744446be919ef4bd5f2cd84977819bb0a6ffec7e54a0e40a74ab42ce83ecfbe8bd7023729069ce0ae1a34e619369173624dd029f1b"
+}

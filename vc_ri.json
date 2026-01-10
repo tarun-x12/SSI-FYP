@@ -1,0 +1,12 @@
+{
+    "payload": {
+        "issuer": "did:eth:0x8E550022bc1727de2fF94Cf6b36e25ecb18048Ec",
+        "issuer_address": "0x8E550022bc1727de2fF94Cf6b36e25ecb18048Ec",
+        "holder": "did:eth:0x2aD14D61Fc548dd1b44aCC0b028586e932a5767C",
+        "claims": {
+            "role": "Authorized Institute"
+        },
+        "issuanceDate": 1768046054.8190157
+    },
+    "signature": "07ee6f0983a8a715cb0c51eb54764adf3f48259c8987d498936c7a88c53f0bb52a1002a75aba3aebf85a8c6300a005d75ef732efb0e8939442c941fda86f93751c"
+}

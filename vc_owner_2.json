@@ -1,0 +1,14 @@
+{
+    "payload": {
+        "issuer": "did:eth:0xfaDd9bfd38043e71D03d11e8081aF904256Fc75D",
+        "issuer_address": "0xfaDd9bfd38043e71D03d11e8081aF904256Fc75D",
+        "holder": "did:eth:0x023c880ad98617070Ab54D9372eA74690826E6dE",
+        "claims": {
+            "role": "Data Provider",
+            "region": "Region_2",
+            "data_type": "Medical_IoT"
+        },
+        "issuanceDate": 1768046058.3839269
+    },
+    "signature": "911eba47dad88ce1bc1913b791518a69b4d63fdd0f5980e965843f1793fdf8c13dd0511c00d93ad624d1f3b38b0e532747032fd3fcc3dccda6cce0d6f40642ff1b"
+}
