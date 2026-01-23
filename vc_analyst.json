@@ -1,13 +1,18 @@
 {
     "payload": {
-        "issuer": "did:eth:0x2aD14D61Fc548dd1b44aCC0b028586e932a5767C",
-        "issuer_address": "0x2aD14D61Fc548dd1b44aCC0b028586e932a5767C",
-        "holder": "did:eth:0xd5fd6001B110e971132056E0337986031eA41AED",
-        "claims": {
-            "access_level": "researcher",
-            "clearance": "high"
-        },
-        "issuanceDate": 1768046054.849822
+        "type": [
+            "VerifiableCredential"
+        ],
+        "issuer": "did:eth:0x1C940f5262CB02d2b7E7B0DF18A02fA24fBEc69E",
+        "issuanceDate": "2026-01-15T17:31:02Z",
+        "credentialSubject": {
+            "id": "did:eth:0xCBb0460D3E5426d48138e1367377F064CD0879f5",
+            "address": "0xCBb0460D3E5426d48138e1367377F064CD0879f5",
+            "claims": {
+                "access_level": "researcher",
+                "clearance": "high"
+            }
+        }
     },
-    "signature": "7e630469e4a1dbd35bdfa8e4744446be919ef4bd5f2cd84977819bb0a6ffec7e54a0e40a74ab42ce83ecfbe8bd7023729069ce0ae1a34e619369173624dd029f1b"
+    "signature": "09a06a52e08c86a84638319830ad39d642a0d7007a8bfb886be31ca64d74146e3c26435901fec477091f6b45c545f0e67fd25a0eb81635e113fab9ed25f8a6461c"
 }

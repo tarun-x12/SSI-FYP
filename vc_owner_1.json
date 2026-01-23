@@ -1,14 +1,19 @@
 {
     "payload": {
-        "issuer": "did:eth:0xfaDd9bfd38043e71D03d11e8081aF904256Fc75D",
-        "issuer_address": "0xfaDd9bfd38043e71D03d11e8081aF904256Fc75D",
-        "holder": "did:eth:0x8d0A91D233c7E6f6e2C06cB210afA14Ff4f37538",
-        "claims": {
-            "role": "Data Provider",
-            "region": "Region_1",
-            "data_type": "Medical_IoT"
-        },
-        "issuanceDate": 1768046058.37487
+        "type": [
+            "VerifiableCredential"
+        ],
+        "issuer": "did:eth:0x16D8EBd71FE0396B4e10563540B155b57dB04b3F",
+        "issuanceDate": "2026-01-15T17:31:04Z",
+        "credentialSubject": {
+            "id": "did:eth:0xE182d447665671FEF4317A3B8b851d7349969a42",
+            "address": "0xE182d447665671FEF4317A3B8b851d7349969a42",
+            "claims": {
+                "role": "Data Provider",
+                "region": "Region_1",
+                "data_type": "Medical_IoT"
+            }
+        }
     },
-    "signature": "1035d148c7e9f0647226cf488f4907625f0ce7e4040bc39940e92904f132dcb42b5111c0acea7ec0872375910e2f844ba7af55844598f4476e0c768ad5b88eb71b"
+    "signature": "e01e216927f5cdda86e7ae02ae54f27092aa05f87acdb2050ee30d31b70dc84571965a440e96d4597034ee3fcb5847c09ce1537964aa4c529a7b55182837f3141c"
 }

@@ -1,5 +1,210 @@
 {
-    "contract_address": "0x80c08B3B6A9de385A3d2b3dCE8b45B57eA29a565",
-    "ga_address": "0x8E550022bc1727de2fF94Cf6b36e25ecb18048Ec",
-    "ga_did": "did:eth:0x8E550022bc1727de2fF94Cf6b36e25ecb18048Ec"
+    "contract_address": "0x52781049e703a766cDe6ab411C0fdaD363AB7A04",
+    "ga_address": "0x318e33AF253a6Fd370b0e83d5B3B26BDfc24a1DC",
+    "abi": [
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "string",
+                    "name": "verifier",
+                    "type": "string"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "string",
+                    "name": "subject",
+                    "type": "string"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "string",
+                    "name": "action",
+                    "type": "string"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint256",
+                    "name": "timestamp",
+                    "type": "uint256"
+                }
+            ],
+            "name": "AuditLog",
+            "type": "event"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "name": "addressToDid",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "name": "didExists",
+            "outputs": [
+                {
+                    "internalType": "bool",
+                    "name": "",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_did",
+                    "type": "string"
+                }
+            ],
+            "name": "getMerkleRoot",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_did",
+                    "type": "string"
+                }
+            ],
+            "name": "getPublicKey",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "name": "issuerMerkleRoots",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_verifier",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "_subject",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "_action",
+                    "type": "string"
+                }
+            ],
+            "name": "logAudit",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "name": "pubKeys",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_did",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "_root",
+                    "type": "string"
+                }
+            ],
+            "name": "publishMerkleRoot",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_did",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "_pubKey",
+                    "type": "string"
+                }
+            ],
+            "name": "register",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        }
+    ]
 }

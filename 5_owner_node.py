@@ -4,10 +4,12 @@ import torch
 import torch.nn as nn
 import pandas as pd
 import time
-from ssi_utils import SSIEntity, load_json
+import json
+from ssi_utils import SSIEntity, load_json, get_contract
 from key_manager import get_ganache_key
 from fl_utils import HybridDL, preprocess_data, apply_ldp
 from cloud_client import CloudAgentClient
+from merkle_utils import verify_merkle_proof  # <--- NEW IMPORT
 
 # Global queue for incoming requests
 incoming_requests = []
@@ -37,7 +39,6 @@ def run_owner_node(owner_index):
     # ---------------------------------------------------------
     print(f"[{owner_name}] Ensuring Blockchain Registration...")
     try:
-        # Force registration so the Analyst can verify us later
         Owner.register_on_blockchain()
     except Exception as e:
         print(f"⚠️ Registration warning: {e}")
@@ -54,6 +55,7 @@ def run_owner_node(owner_index):
     cloud.connect()
 
     print(f"[{owner_name}] Listening for Training Requests...")
+    contract = get_contract(config['contract_address']) # Load Contract Instance
 
     # --- MAIN LOOP ---
     while True:
@@ -65,32 +67,72 @@ def run_owner_node(owner_index):
 
             print(f"[{owner_name}] Verifying Analyst {sender_did}...")
             
-            # --- STEP A: SECURITY CHECK ---
             try:
+                # --- STEP A: STANDARD SECURITY CHECK (ZKP + VC Sig) ---
                 is_zk = Owner.verify_zk_proof(req['sender_address'], req['challenge_context'], req['proof_nizkp'])
                 is_vc = Owner.verify_vc_issuer(req['vc'])
 
-                if is_zk and is_vc:
-                    print(f"[{owner_name}] ✅ Trusted Analyst. Starting Training...")
+                # --- STEP B: NOVELTY CHECK (Merkle Tree Verification) ---
+                print(f"[{owner_name}] 🔍 Checking HBMT Merkle Status...")
+                is_merkle_valid = False
+                
+                try:
+                    # 1. Reconstruct string from VC to hash it (Must match RI's sorting)
+                    vc_string = json.dumps(req['vc'], sort_keys=True)
+                    proof = req.get('merkle_proof')
+
+                    if proof:
+                        # 2. Get Issuer's Root from Blockchain
+                        issuer_did = req['vc']['payload']['issuer']
+                        blockchain_root = contract.functions.getMerkleRoot(issuer_did).call()
+                        
+                        if not blockchain_root:
+                            print(f"   ⚠️ No Root found for issuer {issuer_did}")
+                        else:
+                            # 3. Verify Math
+                            is_merkle_valid = verify_merkle_proof(vc_string, proof, blockchain_root)
+                    else:
+                        print("   ⚠️ No Merkle Proof provided in request.")
+                except Exception as e:
+                    print(f"   ❌ Merkle Check Error: {e}")
+
+                # --- DECISION ---
+                if is_zk and is_vc and is_merkle_valid:
+                    print(f"[{owner_name}] ✅ Trusted Analyst (Identity + Merkle Valid).")
                     
-                    # --- STEP B: LOCAL TRAINING ---
+                    # --- STEP C: NOVELTY LOGGING (KAC Audit) ---
+                    print(f"[{owner_name}] 📝 Logging to KAC Audit System...")
+                    try:
+                        tx = contract.functions.logAudit(
+                            Owner.did,      # Verifier
+                            sender_did,     # Subject (Analyst)
+                            "TRAINING_AUTH_SUCCESS" # Action
+                        ).build_transaction({
+                            'from': Owner.address,
+                            'nonce': Owner.w3.eth.get_transaction_count(Owner.address),
+                            'gas': 3000000,
+                            'gasPrice': Owner.w3.to_wei('20', 'gwei')
+                        })
+                        signed_tx = Owner.w3.eth.account.sign_transaction(tx, Owner.account.key)
+                        Owner.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+                        print(f"[{owner_name}] ✅ Audit Logged on Blockchain.")
+                    except Exception as e:
+                        print(f"⚠️ Audit Log Failed: {e}")
+
+                    # --- STEP D: LOCAL TRAINING ---
+                    print(f"[{owner_name}] Starting Local Training...")
                     try:
                         raw_df = pd.read_csv(dataset_file)
                         X_proc, y_proc = preprocess_data(raw_df)
-                        
-                        # Privacy: Add Noise
                         X_priv = apply_ldp(X_proc, epsilon=2.0)
                         
-                        # Convert to Tensors
                         X_tensor = torch.FloatTensor(X_priv)
                         y_tensor = torch.FloatTensor(y_proc).unsqueeze(1)
                         
-                        # Initialize Model
                         model = HybridDL(X_priv.shape[1])
                         criterion = nn.MSELoss()
                         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
                         
-                        # Train
                         model.train()
                         for epoch in range(5):
                             optimizer.zero_grad()
@@ -101,12 +143,9 @@ def run_owner_node(owner_index):
                         
                         print(f"[{owner_name}] Training Done (Loss: {loss.item():.4f}). Sending Results...")
 
-                        # --- STEP C: SEND REPLY (M2) ---
                         local_weights = model.state_dict()
-                        # Serialize (Tensor -> List)
                         weights_json = {k: v.tolist() for k, v in local_weights.items()}
                         
-                        # Generate Proof of Acceptance
                         reply_ctx = f"FL_ACCEPT_{int(time.time())}"
                         proof_pr_o = Owner.generate_zk_proof(reply_ctx)
 
@@ -125,8 +164,13 @@ def run_owner_node(owner_index):
                         
                     except Exception as e:
                         print(f"❌ Training Error: {e}")
+
                 else:
-                    print(f"[{owner_name}] ❌ Security Failed. Ignoring Request.")
+                    print(f"[{owner_name}] ❌ Security Failed.")
+                    print(f"   > ZK Proof: {is_zk}")
+                    print(f"   > VC Signature: {is_vc}")
+                    print(f"   > Merkle Check: {is_merkle_valid}")
+
             except Exception as e:
                 print(f"[{owner_name}] ❌ Verification Error: {e}")
         

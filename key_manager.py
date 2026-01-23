@@ -4,7 +4,7 @@ from eth_account import Account
 Account.enable_unaudited_hdwallet_features()
 
 # 2. PASTE THE SAME MNEMONIC FROM YOUR GANACHE WORKSPACE HERE
-GANACHE_MNEMONIC ="have ripple assist crisp push betray access brick shadow fortune mad pony"
+GANACHE_MNEMONIC ="group wheat laptop square assault degree kind burden purpose flight learn voice"
 
 def get_ganache_key(index):
     """
