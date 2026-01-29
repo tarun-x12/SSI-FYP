@@ -3,17 +3,17 @@
         "type": [
             "VerifiableCredential"
         ],
-        "issuer": "did:eth:0x16D8EBd71FE0396B4e10563540B155b57dB04b3F",
-        "issuanceDate": "2026-01-15T17:31:04Z",
+        "issuer": "did:eth:0x965838A27E4B6c8F3De6729EE6D9b23cC2f42d40",
+        "issuanceDate": "2026-01-29T13:01:58Z",
         "credentialSubject": {
-            "id": "did:eth:0x9a5cA178BBDd82285E7d96a5CD4e1334ae4C271d",
-            "address": "0x9a5cA178BBDd82285E7d96a5CD4e1334ae4C271d",
+            "id": "did:eth:0x8B33D58F8a78bb924E35Ba313f3216B1edcB1Dc2",
+            "address": "0x8B33D58F8a78bb924E35Ba313f3216B1edcB1Dc2",
             "claims": {
-                "role": "Data Provider",
-                "region": "Region_3",
-                "data_type": "Medical_IoT"
+                "role": "Authorized Hospital",
+                "region": "North_District",
+                "capacity": "Level_1_Trauma"
             }
         }
     },
-    "signature": "cd72dc9e9d5c3cb9cbd4d139fa3a8f76f121a615f79249917316f054b65f44f47193f2f16c140a8c279a5e695f7b6faae775703c6bcd998073589ddc5dadff0a1c"
+    "signature": "126c3165efe74502585c1ec24b0467b79aab903506428447357b9ff7dd7e57d95fb4e6740514d592dea7f982c5d9a6daca09588308381b57232733e0b4ef7d111b"
 }

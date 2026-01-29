@@ -99,5 +99,6 @@ def deploy_contract():
     with open("system_config.json", "w") as f:
         json.dump(config, f, indent=4)
 
+
 if __name__ == "__main__":
     deploy_contract()

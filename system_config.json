@@ -1,6 +1,6 @@
 {
-    "contract_address": "0x52781049e703a766cDe6ab411C0fdaD363AB7A04",
-    "ga_address": "0x318e33AF253a6Fd370b0e83d5B3B26BDfc24a1DC",
+    "contract_address": "0x0179d3CAfAc2FeCB5824337F95343A461a72a5Dd",
+    "ga_address": "0xB7E2D9210F03F6d5003BE6067De7A12313155C94",
     "abi": [
         {
             "anonymous": false,

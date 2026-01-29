@@ -89,10 +89,21 @@ def preprocess_data(df, n_components=6):
     return X, y
 
 # --- 4. DUMMY DATA GENERATOR ---
+# --- 4. DUMMY DATA GENERATOR (SMART VERSION) ---
 def generate_dummy_data(rows=100):
-    """Generates synthetic medical data (9 columns) for testing"""
+    """Generates synthetic data WITH PATTERNS so the AI can actually learn."""
+    # Generate random features
     data = np.random.rand(rows, 9)
-    # Binary target (0 or 1)
-    targets = np.random.randint(0, 2, size=(rows, 1))
+    
+    # Create a hidden rule:
+    # If (Feature 0 + Feature 1 + Feature 2) > 1.5 -> Outcome is 1 (Sick)
+    # Else -> Outcome is 0 (Healthy)
+    # This gives the neural network a clear mathematical pattern to discover.
+    
+    targets = (data[:, 0] + data[:, 1] + data[:, 2] > 1.5).astype(int)
+    
+    # Reshape target to (rows, 1)
+    targets = targets.reshape(-1, 1)
+    
     df = pd.DataFrame(np.hstack((data, targets)), columns=[f"feat_{i}" for i in range(9)] + ["outcome"])
     return df

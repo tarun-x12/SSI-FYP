@@ -5,11 +5,11 @@ import torch.nn as nn
 import pandas as pd
 import time
 import json
-from ssi_utils import SSIEntity, load_json, get_contract
+from ssi_utils import SSIEntity, load_json, get_contract, w3 
 from key_manager import get_ganache_key
 from fl_utils import HybridDL, preprocess_data, apply_ldp
 from cloud_client import CloudAgentClient
-from merkle_utils import verify_merkle_proof  # <--- NEW IMPORT
+from merkle_utils import verify_merkle_proof
 
 # Global queue for incoming requests
 incoming_requests = []
@@ -34,15 +34,11 @@ def run_owner_node(owner_index):
     pkey = get_ganache_key(ganache_index)
     Owner = SSIEntity(owner_name, pkey, config['contract_address'])
 
-    # ---------------------------------------------------------
-    # 🔥 CRITICAL FIX: ALWAYS REGISTER ON BLOCKCHAIN ON STARTUP
-    # ---------------------------------------------------------
     print(f"[{owner_name}] Ensuring Blockchain Registration...")
     try:
         Owner.register_on_blockchain()
     except Exception as e:
         print(f"⚠️ Registration warning: {e}")
-    # ---------------------------------------------------------
     
     # 2. Load VC
     if not os.path.exists(vc_filename):
@@ -60,7 +56,6 @@ def run_owner_node(owner_index):
     # --- MAIN LOOP ---
     while True:
         if len(incoming_requests) > 0:
-            # Process the oldest request
             msg = incoming_requests.pop(0)
             req = msg['payload']
             sender_did = msg['from']
@@ -68,56 +63,74 @@ def run_owner_node(owner_index):
             print(f"[{owner_name}] Verifying Analyst {sender_did}...")
             
             try:
-                # --- STEP A: STANDARD SECURITY CHECK (ZKP + VC Sig) ---
+                # --- STEP A: STANDARD SECURITY CHECK ---
                 is_zk = Owner.verify_zk_proof(req['sender_address'], req['challenge_context'], req['proof_nizkp'])
                 is_vc = Owner.verify_vc_issuer(req['vc'])
 
-                # --- STEP B: NOVELTY CHECK (Merkle Tree Verification) ---
-                print(f"[{owner_name}] 🔍 Checking HBMT Merkle Status...")
+                # --- STEP B: CHECK ANALYST STATUS ---
                 is_merkle_valid = False
-                
                 try:
-                    # 1. Reconstruct string from VC to hash it (Must match RI's sorting)
                     vc_string = json.dumps(req['vc'], sort_keys=True)
                     proof = req.get('merkle_proof')
-
                     if proof:
-                        # 2. Get Issuer's Root from Blockchain
                         issuer_did = req['vc']['payload']['issuer']
                         blockchain_root = contract.functions.getMerkleRoot(issuer_did).call()
-                        
-                        if not blockchain_root:
-                            print(f"   ⚠️ No Root found for issuer {issuer_did}")
-                        else:
-                            # 3. Verify Math
+                        if blockchain_root:
                             is_merkle_valid = verify_merkle_proof(vc_string, proof, blockchain_root)
-                    else:
-                        print("   ⚠️ No Merkle Proof provided in request.")
-                except Exception as e:
-                    print(f"   ❌ Merkle Check Error: {e}")
+                except:
+                    pass
 
                 # --- DECISION ---
                 if is_zk and is_vc and is_merkle_valid:
                     print(f"[{owner_name}] ✅ Trusted Analyst (Identity + Merkle Valid).")
                     
-                    # --- STEP C: NOVELTY LOGGING (KAC Audit) ---
+                    # ------------------------------------------------------------------
+                    # 🔥 NEW STEP: SELF-DIAGNOSTIC (AM I BANNED?)
+                    # ------------------------------------------------------------------
+                    print(f"[{owner_name}] 🛡️ Performing Self-Diagnostic on License...")
+                    try:
+                        # 1. Load my own proof
+                        my_proof_file = f"merkle_proof_owner_{owner_index}.json"
+                        if os.path.exists(my_proof_file):
+                            my_proof = load_json(my_proof_file)
+                            
+                            # 2. Get the *LIVE* Root from Blockchain (LG's Root)
+                            my_issuer_did = my_vc['payload']['issuer']
+                            live_root = contract.functions.getMerkleRoot(my_issuer_did).call()
+                            
+                            # 3. Verify myself
+                            my_vc_string = json.dumps(my_vc, sort_keys=True)
+                            am_i_valid = verify_merkle_proof(my_vc_string, my_proof, live_root)
+                            
+                            if not am_i_valid:
+                                print("\n" + "!"*60)
+                                print(f"[{owner_name}] ⛔ CRITICAL ALERT: HOSPITAL LICENSE REVOKED!")
+                                print(f"[{owner_name}] ❌ The Government has removed you from the Trust List.")
+                                print(f"[{owner_name}] 🛑 Aborting Training. Access Denied.")
+                                print("!"*60 + "\n")
+                                continue # <--- STOP HERE. DO NOT TRAIN.
+                            else:
+                                print(f"[{owner_name}] ✅ License Active. Proceeding...")
+                        else:
+                            print(f"[{owner_name}] ⚠️ No proof file found to self-check.")
+                    except Exception as e:
+                        print(f"[{owner_name}] ⚠️ Self-Check Error: {e}")
+                    # ------------------------------------------------------------------
+
+                    # --- STEP C: AUDIT LOG ---
                     print(f"[{owner_name}] 📝 Logging to KAC Audit System...")
                     try:
-                        tx = contract.functions.logAudit(
-                            Owner.did,      # Verifier
-                            sender_did,     # Subject (Analyst)
-                            "TRAINING_AUTH_SUCCESS" # Action
-                        ).build_transaction({
+                        tx = contract.functions.logAudit(Owner.did, sender_did, "TRAINING_AUTH_SUCCESS").build_transaction({
                             'from': Owner.address,
-                            'nonce': Owner.w3.eth.get_transaction_count(Owner.address),
+                            'nonce': w3.eth.get_transaction_count(Owner.address),
                             'gas': 3000000,
-                            'gasPrice': Owner.w3.to_wei('20', 'gwei')
+                            'gasPrice': w3.to_wei('20', 'gwei')
                         })
-                        signed_tx = Owner.w3.eth.account.sign_transaction(tx, Owner.account.key)
-                        Owner.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+                        signed_tx = w3.eth.account.sign_transaction(tx, Owner.account.key)
+                        w3.eth.send_raw_transaction(signed_tx.raw_transaction)
                         print(f"[{owner_name}] ✅ Audit Logged on Blockchain.")
-                    except Exception as e:
-                        print(f"⚠️ Audit Log Failed: {e}")
+                    except:
+                        pass
 
                     # --- STEP D: LOCAL TRAINING ---
                     print(f"[{owner_name}] Starting Local Training...")
@@ -140,6 +153,7 @@ def run_owner_node(owner_index):
                             loss = criterion(output, y_tensor)
                             loss.backward()
                             optimizer.step()
+                            time.sleep(0.01) # GIL release
                         
                         print(f"[{owner_name}] Training Done (Loss: {loss.item():.4f}). Sending Results...")
 
@@ -148,6 +162,7 @@ def run_owner_node(owner_index):
                         
                         reply_ctx = f"FL_ACCEPT_{int(time.time())}"
                         proof_pr_o = Owner.generate_zk_proof(reply_ctx)
+                        my_proof = load_json(my_proof_file) if os.path.exists(my_proof_file) else None
 
                         reply_payload = {
                             "sender_did": Owner.did,
@@ -156,25 +171,22 @@ def run_owner_node(owner_index):
                             "proof_nizkp": proof_pr_o,
                             "challenge_context": reply_ctx,
                             "weights": weights_json,
-                            "meta": {"data_rows": len(X_priv)}
+                            "meta": {"data_rows": len(X_priv)},
+                            "merkle_proof": my_proof 
                         }
 
                         cloud.send(sender_did, "M2", reply_payload)
-                        print(f"[{owner_name}] 📤 Sent M2 Reply to Analyst.")
+                        print(f"[{owner_name}] 📤 Sent M2 Reply (with Proof) to Analyst.")
                         
                     except Exception as e:
                         print(f"❌ Training Error: {e}")
 
                 else:
                     print(f"[{owner_name}] ❌ Security Failed.")
-                    print(f"   > ZK Proof: {is_zk}")
-                    print(f"   > VC Signature: {is_vc}")
-                    print(f"   > Merkle Check: {is_merkle_valid}")
 
             except Exception as e:
                 print(f"[{owner_name}] ❌ Verification Error: {e}")
         
-        # Idle wait
         time.sleep(1)
 
 if __name__ == "__main__":
