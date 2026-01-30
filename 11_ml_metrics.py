@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import pandas as pd
 import numpy as np
-from sklearn.metrics import confusion_matrix, accuracy_score
+import os
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 from fl_utils import HybridDL, preprocess_data, generate_dummy_data
 
 def evaluate_ml_metrics():
@@ -10,55 +11,65 @@ def evaluate_ml_metrics():
     print("      🧠  FEDERATED LEARNING PERFORMANCE METRICS      ")
     print("="*60)
 
-    # --- 1. PREPARE TEST DATA ---
-    print("\n[Setup] Generating standardized Test Set...")
-    # We generate a clean test set (not seen during training)
-    test_df = generate_dummy_data(rows=200)
-    X_test, y_test = preprocess_data(test_df)
-    
+    # --- 1. DETERMINE INPUT SHAPE ---
+    if os.path.exists("dataset_owner_1.csv"):
+        print("[Setup] Detected Real Data. Loading sample to determine shape...")
+        df_sample = pd.read_csv("dataset_owner_1.csv")
+        test_df = df_sample.sample(frac=0.2, random_state=42) 
+        X_test, y_test = preprocess_data(test_df)
+        print(f"   > Detected Input Features: {X_test.shape[1]}")
+    else:
+        print("[Setup] No Real Data found. Falling back to Dummy Data...")
+        test_df = generate_dummy_data(rows=200)
+        X_test, y_test = preprocess_data(test_df)
+
     # Convert to Tensor
     X_test_tensor = torch.FloatTensor(X_test)
     y_test_tensor = torch.FloatTensor(y_test).unsqueeze(1)
 
     # --- 2. EVALUATE GLOBAL MODEL (WITH PRIVACY) ---
-    print("[Test 1] Evaluating Global Model (with Differential Privacy)...")
+    print("\n[Test 1] Evaluating Global Model (with Differential Privacy)...")
     
     try:
-        # Load the model structure
         model_private = HybridDL(input_dim=X_test.shape[1])
-        
-        # Load the trained weights
         state_dict = torch.load("global_model_final.pth")
         model_private.load_state_dict(state_dict)
         model_private.eval()
 
-        # Predict
         with torch.no_grad():
             preds_private = model_private(X_test_tensor)
             preds_private_cls = (preds_private > 0.5).float()
         
-        # Calculate Accuracy Components
+        # --- NEW METRICS CALCULATION ---
         tn, fp, fn, tp = confusion_matrix(y_test, preds_private_cls).ravel()
         acc_private = accuracy_score(y_test, preds_private_cls)
+        precision = precision_score(y_test, preds_private_cls, zero_division=0)
+        recall = recall_score(y_test, preds_private_cls, zero_division=0)
+        f1 = f1_score(y_test, preds_private_cls, zero_division=0)
 
         print(f"   ✅ Global Model Loaded.")
         print(f"   TP: {tp}, TN: {tn}, FP: {fp}, FN: {fn}")
-        print(f"   Accuracy (Private): {acc_private * 100:.2f}%")
+        print(f"   Accuracy:  {acc_private * 100:.2f}%")
+        print(f"   Precision: {precision:.4f}")
+        print(f"   Recall:    {recall:.4f}")
+        print(f"   F1-Score:  {f1:.4f}")
 
     except FileNotFoundError:
         print("❌ Error: 'global_model_final.pth' not found.")
-        print("   Run '4_analyst_persistent.py' first to aggregate a model.")
+        return
+    except RuntimeError as e:
+        print(f"❌ Shape Mismatch: {e}")
         return
 
     # --- 3. TRAIN BASELINE MODEL (NO PRIVACY) ---
     print("\n[Test 2] Training Baseline Model (No Privacy) for Comparison...")
-    # We simulate a model trained on raw data WITHOUT LDP noise
     
-    # Generate clean training data
-    train_df = generate_dummy_data(rows=500)
+    if os.path.exists("dataset_owner_1.csv"):
+        train_df = pd.read_csv("dataset_owner_1.csv").sample(frac=0.8, random_state=42)
+    else:
+        train_df = generate_dummy_data(rows=500)
+
     X_train, y_train = preprocess_data(train_df)
-    
-    # Note: We skip 'apply_ldp' here to get the "No-Privacy" benchmark
     X_train_tensor = torch.FloatTensor(X_train)
     y_train_tensor = torch.FloatTensor(y_train).unsqueeze(1)
 
@@ -66,16 +77,14 @@ def evaluate_ml_metrics():
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model_baseline.parameters(), lr=0.01)
 
-    # Fast Training Loop
     model_baseline.train()
-    for epoch in range(10):
+    for epoch in range(100): 
         optimizer.zero_grad()
         output = model_baseline(X_train_tensor)
         loss = criterion(output, y_train_tensor)
         loss.backward()
         optimizer.step()
 
-    # Evaluate Baseline
     model_baseline.eval()
     with torch.no_grad():
         preds_baseline = model_baseline(X_test_tensor)
@@ -86,34 +95,29 @@ def evaluate_ml_metrics():
     print(f"   Accuracy (No Privacy): {acc_no_privacy * 100:.2f}%")
 
 
-    # --- 4. CALCULATE FINAL METRICS ---
-    
-    # 4.5 Federated Learning Accuracy
+    # --- 4. CALCULATE FINAL REPORT ---
     fl_accuracy = acc_private * 100
-
-    # 4.6 Privacy-Utility Trade-off
-    # U_loss = Acc_no_privacy - Acc_private
     utility_loss = (acc_no_privacy - acc_private) * 100
 
     print("\n" + "="*60)
-    print("      📈  FINAL ML PERFORMANCE REPORT      ")
+    print("      📈  FINAL MEDICAL AI REPORT      ")
     print("="*60)
     
-    print(f"4.5 Federated Learning Accuracy")
-    print(f"   Formula: (TP + TN) / (TP + TN + FP + FN)")
+    print(f"1. Overall Accuracy")
     print(f"   RESULT: {fl_accuracy:.2f}%")
-    print(f"   (Accuracy of the secure, aggregated global model)")
+    print(f"   (Correct predictions / Total Cases)")
 
-    print(f"\n4.6 Privacy-Utility Trade-off (U_loss)")
-    print(f"   Formula: Acc_no-privacy - Acc_private")
-    print(f"   RESULT: {utility_loss:.2f}%")
-    print(f"   (Accuracy drop caused by adding Differential Privacy)")
+    print(f"\n2. F1-Score (The Balanced Metric)")
+    print(f"   RESULT: {f1:.4f}")
+    print(f"   (Harmonic mean of Precision and Recall. Max is 1.0)")
     
-    if utility_loss < 5.0:
-        print("   ✅ CONCLUSION: High Utility Preserved (Low Loss).")
-    else:
-        print("   ⚠️ CONCLUSION: Privacy noise significantly impacted accuracy.")
+    print(f"\n3. Recall (Sensitivity)")
+    print(f"   RESULT: {recall:.4f}")
+    print(f"   (Ability to detect positive cases)")
 
+    print(f"\n4. Privacy-Utility Trade-off (U_loss)")
+    print(f"   RESULT: {utility_loss:.2f}%")
+    
     print("="*60 + "\n")
 
 if __name__ == "__main__":

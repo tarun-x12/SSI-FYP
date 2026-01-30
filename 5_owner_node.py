@@ -67,13 +67,32 @@ def run_owner_node(owner_index):
                 is_zk = Owner.verify_zk_proof(req['sender_address'], req['challenge_context'], req['proof_nizkp'])
                 is_vc = Owner.verify_vc_issuer(req['vc'])
 
-                # --- STEP B: CHECK ANALYST STATUS ---
+                # ---------------------------------------------------------
+                # 🔥 NEW: TRUST POLICY ENFORCEMENT (SEPARATION OF ENTITIES)
+                # ---------------------------------------------------------
+                # We identify the RI by their specific DID (from setup 2_ri_node.py)
+                # In a real app, this is hardcoded or fetched from a Governance Smart Contract.
+                
+                # Fetch issuer from the incoming VC
+                issuer_did = req['vc']['payload']['issuer']
+                
+                # Get RI's DID (We know RI is Index 1)
+                ri_key = get_ganache_key(1)
+                ri_real_did = SSIEntity("RI", ri_key).did
+                
+                is_policy_valid = True
+                if issuer_did != ri_real_did:
+                    print(f"[{owner_name}] ❌ Policy Violation: Issuer {issuer_did} is NOT the Research Institute.")
+                    print(f"[{owner_name}]    > Only the RI can authorize Data Analysts.")
+                    is_policy_valid = False
+                # ---------------------------------------------------------
+
+                # --- STEP B: CHECK MERKLE STATUS ---
                 is_merkle_valid = False
                 try:
                     vc_string = json.dumps(req['vc'], sort_keys=True)
                     proof = req.get('merkle_proof')
                     if proof:
-                        issuer_did = req['vc']['payload']['issuer']
                         blockchain_root = contract.functions.getMerkleRoot(issuer_did).call()
                         if blockchain_root:
                             is_merkle_valid = verify_merkle_proof(vc_string, proof, blockchain_root)
@@ -81,9 +100,8 @@ def run_owner_node(owner_index):
                     pass
 
                 # --- DECISION ---
-                if is_zk and is_vc and is_merkle_valid:
-                    print(f"[{owner_name}] ✅ Trusted Analyst (Identity + Merkle Valid).")
-                    
+                if is_zk and is_vc and is_merkle_valid and is_policy_valid:
+                    print(f"[{owner_name}] ✅ Trusted Analyst (Identity + Merkle + Policy Valid).")
                     # ------------------------------------------------------------------
                     # 🔥 NEW STEP: SELF-DIAGNOSTIC (AM I BANNED?)
                     # ------------------------------------------------------------------
@@ -147,7 +165,7 @@ def run_owner_node(owner_index):
                         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
                         
                         model.train()
-                        for epoch in range(5):
+                        for epoch in range(100):
                             optimizer.zero_grad()
                             output = model(X_tensor)
                             loss = criterion(output, y_tensor)

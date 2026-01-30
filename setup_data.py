@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # --- CONFIGURATION ---
-SOURCE_FILE = "data.csv"  # Ensure your file is named this
+SOURCE_FILE = "final_augmented_data.csv"  # Ensure your file is named this
 TARGET_COL = "Diabetes_binary" # The name of your target column
 
 def setup_datasets():
