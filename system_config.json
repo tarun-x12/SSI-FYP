@@ -1,7 +1,12 @@
 {
-    "contract_address": "0x0179d3CAfAc2FeCB5824337F95343A461a72a5Dd",
-    "ga_address": "0xB7E2D9210F03F6d5003BE6067De7A12313155C94",
+    "contract_address": "0x564F3635F573420dCce0E36B8a68BE013cF6689b",
+    "ga_address": "0x4D94039808364d789ECA4768135AC51C9Eb7a1A5",
     "abi": [
+        {
+            "inputs": [],
+            "stateMutability": "nonpayable",
+            "type": "constructor"
+        },
         {
             "anonymous": false,
             "inputs": [
@@ -37,16 +42,23 @@
             "inputs": [
                 {
                     "internalType": "address",
-                    "name": "",
+                    "name": "_authority",
                     "type": "address"
                 }
             ],
-            "name": "addressToDid",
+            "name": "addAuthority",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "admin",
             "outputs": [
                 {
-                    "internalType": "string",
+                    "internalType": "address",
                     "name": "",
-                    "type": "string"
+                    "type": "address"
                 }
             ],
             "stateMutability": "view",
@@ -55,12 +67,12 @@
         {
             "inputs": [
                 {
-                    "internalType": "string",
+                    "internalType": "address",
                     "name": "",
-                    "type": "string"
+                    "type": "address"
                 }
             ],
-            "name": "didExists",
+            "name": "authorizedIssuers",
             "outputs": [
                 {
                     "internalType": "bool",
@@ -75,7 +87,7 @@
             "inputs": [
                 {
                     "internalType": "string",
-                    "name": "_did",
+                    "name": "_issuerDid",
                     "type": "string"
                 }
             ],
@@ -93,31 +105,12 @@
         {
             "inputs": [
                 {
-                    "internalType": "string",
-                    "name": "_did",
-                    "type": "string"
+                    "internalType": "address",
+                    "name": "_owner",
+                    "type": "address"
                 }
             ],
             "name": "getPublicKey",
-            "outputs": [
-                {
-                    "internalType": "string",
-                    "name": "",
-                    "type": "string"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "string",
-                    "name": "",
-                    "type": "string"
-                }
-            ],
-            "name": "issuerMerkleRoots",
             "outputs": [
                 {
                     "internalType": "string",
@@ -159,7 +152,7 @@
                     "type": "string"
                 }
             ],
-            "name": "pubKeys",
+            "name": "merkleRoots",
             "outputs": [
                 {
                     "internalType": "string",
@@ -174,7 +167,7 @@
             "inputs": [
                 {
                     "internalType": "string",
-                    "name": "_did",
+                    "name": "_issuerDid",
                     "type": "string"
                 },
                 {
@@ -204,6 +197,35 @@
             "name": "register",
             "outputs": [],
             "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "name": "registry",
+            "outputs": [
+                {
+                    "internalType": "string",
+                    "name": "did",
+                    "type": "string"
+                },
+                {
+                    "internalType": "string",
+                    "name": "publicKey",
+                    "type": "string"
+                },
+                {
+                    "internalType": "bool",
+                    "name": "exists",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "view",
             "type": "function"
         }
     ]

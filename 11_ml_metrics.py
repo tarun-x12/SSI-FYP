@@ -39,7 +39,8 @@ def evaluate_ml_metrics():
         with torch.no_grad():
             preds_private = model_private(X_test_tensor)
             preds_private_cls = (preds_private > 0.5).float()
-        
+
+
         # --- NEW METRICS CALCULATION ---
         tn, fp, fn, tp = confusion_matrix(y_test, preds_private_cls).ravel()
         acc_private = accuracy_score(y_test, preds_private_cls)

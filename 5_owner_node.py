@@ -126,6 +126,8 @@ def run_owner_node(owner_index):
                                 print(f"[{owner_name}] ❌ The Government has removed you from the Trust List.")
                                 print(f"[{owner_name}] 🛑 Aborting Training. Access Denied.")
                                 print("!"*60 + "\n")
+                                # continue  <--- COMMENT THIS OUT (Put a # in front)
+                                #print("   -> (Bypassing self-check for Demo purposes...)")
                                 continue # <--- STOP HERE. DO NOT TRAIN.
                             else:
                                 print(f"[{owner_name}] ✅ License Active. Proceeding...")

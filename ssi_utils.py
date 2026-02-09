@@ -55,8 +55,16 @@ class SSIEntity:
         contract = get_contract(self.contract_address)
         pub_key_str = hex(self.zk_public_key)
         
-        print(f"[{self.name}] Registering {self.did}...")
         try:
+            # --- FIX: Check Registry Struct ---
+            # registry(address) returns (did, pubKey, exists)
+            user_data = contract.functions.registry(self.address).call()
+            
+            if user_data[2]: # 'exists' boolean is at index 2
+                print(f"[{self.name}] ✅ Already registered on chain.")
+                return
+
+            print(f"[{self.name}] Registering {self.did}...")
             tx = contract.functions.register(self.did, pub_key_str).build_transaction({
                 'from': self.address,
                 'nonce': w3.eth.get_transaction_count(self.address),
@@ -108,25 +116,32 @@ class SSIEntity:
         
         s = (r + c * self.zk_private_key) % (self.P - 1)
         
-        # 🔥 FIX: Return as HEX STRINGS
         return {"t": hex(t), "s": hex(s)}
 
     def verify_zk_proof(self, prover_identifier, challenge_str, proof):
         """Verifies Proof. HANDLES HEX STRINGS."""
         contract = get_contract(self.contract_address)
         try:
-            # 1. Resolve DID
-            target_did = prover_identifier if prover_identifier.startswith("did:eth:") else ""
-            if not target_did:
-                target_did = contract.functions.addressToDid(prover_identifier).call()
-                if not target_did: target_did = f"did:eth:{prover_identifier}"
+            # --- FIX: LOGIC FOR NEW SECURE CONTRACT ---
+            target_address = prover_identifier
+            
+            # If input is a DID, extract address (did:eth:0x123...)
+            if "did:eth:" in prover_identifier:
+                target_address = prover_identifier.split(":")[-1]
 
-            # 2. Get Key
-            chain_pub_key_raw = contract.functions.getPublicKey(target_did).call()
+            # 1. Fetch User Data from Registry Struct
+            # Returns: (did, publicKey, exists)
+            user_data = contract.functions.registry(target_address).call()
+            
+            if not user_data[2]: # Check 'exists' boolean
+                print(f" ⚠️ Identity {target_address} not found on chain.")
+                return False
+
+            # 2. Get Key from Struct (Index 1)
+            chain_pub_key_raw = user_data[1]
             public_key = int(chain_pub_key_raw, 16)
             
             # 3. Verify Math
-            # 🔥 FIX: Parse from HEX STRINGS
             t = int(proof['t'], 16)
             s = int(proof['s'], 16)
             
