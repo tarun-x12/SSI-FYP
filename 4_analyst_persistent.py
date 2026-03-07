@@ -3,15 +3,19 @@ import glob
 import torch
 import json
 import os
+import pandas as pd
+
 from ssi_utils import SSIEntity, load_json, w3
 from key_manager import get_ganache_key
 from cloud_client import CloudAgentClient
 from merkle_utils import verify_merkle_proof
 from fl_utils import HybridDL
 
-incoming_replies = []
 
 MODEL_LATEST = "global_model_final.pth"
+METRICS_FILE = "fl_training_metrics.csv"
+
+incoming_replies = []
 
 
 def on_reply_received(msg):
@@ -20,19 +24,9 @@ def on_reply_received(msg):
 
         sender = msg["from"]
 
-        print(f"\n📩 Received M2 from {sender}")
+        print("\n[Cloud] Model update received from:", sender)
 
         incoming_replies.append(msg["payload"])
-
-
-def get_next_version():
-
-    version = 1
-
-    while os.path.exists(f"global_model_v{version}.pth"):
-        version += 1
-
-    return version
 
 
 def run_persistent_analyst():
@@ -43,22 +37,27 @@ def run_persistent_analyst():
         print("system_config.json missing")
         return
 
+
+    print("\n====================================")
+    print("Federated Analyst Node Started")
+    print("====================================")
+
+
     PKEY_A = get_ganache_key(3)
 
     Analyst = SSIEntity("Data Analyst", PKEY_A, config["contract_address"])
 
-    print("[Analyst] Ensuring blockchain registration")
 
     try:
         Analyst.register_on_blockchain()
     except:
         pass
 
+
     cloud = CloudAgentClient(Analyst.did, on_reply_received)
 
     cloud.connect()
 
-    print("\n--- Phase 1: Discover Owners ---")
 
     owner_files = glob.glob("vc_owner_*.json")
 
@@ -68,180 +67,285 @@ def run_persistent_analyst():
 
         return
 
-    print(f"Discovered {len(owner_files)} owners")
 
-    challenge = f"FL_SESSION_{int(time.time())}"
+    print(f"[Discovery] Found {len(owner_files)} dataset owners")
 
-    proof = Analyst.generate_zk_proof(challenge)
 
-    vc_analyst = load_json("vc_analyst.json")
+    round_number = 1
 
-    merkle_proof = None
 
-    try:
-        merkle_proof = load_json("merkle_proof_analyst.json")
-    except:
-        pass
+    while True:
 
-    payload = {
+        print("\n====================================")
+        print(f"Federated Round {round_number}")
+        print("====================================")
 
-        "sender_did": Analyst.did,
-        "sender_address": Analyst.address,
-        "vc": vc_analyst,
-        "proof_nizkp": proof,
-        "challenge_context": challenge,
-        "merkle_proof": merkle_proof,
-    }
+        incoming_replies.clear()
 
-    sent = 0
+        start_round_time = time.time()
 
-    for file in owner_files:
 
-        owner = load_json(file)
+        challenge = f"FL_SESSION_{int(time.time())}"
 
-        vc_payload = owner["payload"]
+        proof = Analyst.generate_zk_proof(challenge)
 
-        if "credentialSubject" in vc_payload:
-            target_did = vc_payload["credentialSubject"]["id"]
-        else:
-            target_did = vc_payload["holder"]
+        vc_analyst = load_json("vc_analyst.json")
 
-        print(f"Sending request to {target_did}")
-
-        cloud.send(target_did, "M1", payload)
-
-        sent += 1
-
-    print("\n--- Phase 2: Waiting for replies ---")
-
-    while len(incoming_replies) < sent:
-
-        print(f"\rReceived {len(incoming_replies)}/{sent} updates", end="")
-
-        time.sleep(2)
-
-    print("\nReceived all updates")
-
-    print("\n--- Phase 3: Aggregation ---")
-
-    verified_updates = []
-
-    contract = w3.eth.contract(
-        address=config["contract_address"], abi=config["abi"]
-    )
-
-    for reply in incoming_replies:
-
-        sender = reply["sender_did"]
+        merkle_proof = None
 
         try:
+            merkle_proof = load_json("merkle_proof_analyst.json")
+        except:
+            pass
 
-            is_zk = Analyst.verify_zk_proof(
-                reply["sender_address"],
-                reply["challenge_context"],
-                reply["proof_nizkp"],
+
+        payload = {
+
+            "sender_did": Analyst.did,
+            "sender_address": Analyst.address,
+            "vc": vc_analyst,
+            "proof_nizkp": proof,
+            "challenge_context": challenge,
+            "merkle_proof": merkle_proof,
+        }
+
+
+        sent = 0
+
+        print("\n[FL] Sending training requests to owners")
+
+        for file in owner_files:
+
+            owner = load_json(file)
+
+            vc_payload = owner["payload"]
+
+            if "credentialSubject" in vc_payload:
+                target_did = vc_payload["credentialSubject"]["id"]
+            else:
+                target_did = vc_payload["holder"]
+
+            print("Request sent to:", target_did)
+
+            cloud.send(target_did, "M1", payload)
+
+            sent += 1
+
+
+        print("\n[FL] Waiting for client updates")
+
+        while len(incoming_replies) < sent:
+
+            print(
+                f"\rReceived {len(incoming_replies)}/{sent} updates",
+                end=""
             )
 
-            is_vc = Analyst.verify_vc_issuer(reply["vc"])
+            time.sleep(2)
 
-            vc_string = json.dumps(reply["vc"], sort_keys=True)
 
-            proof = reply.get("merkle_proof")
+        print("\n[FL] All updates received")
 
-            issuer = reply["vc"]["payload"]["issuer"]
 
-            root = contract.functions.getMerkleRoot(issuer).call()
+        print("\n[Verification] Checking updates")
 
-            is_merkle = False
+        verified_updates = []
 
-            if proof and root:
+        rejected_updates = 0
 
-                is_merkle = verify_merkle_proof(vc_string, proof, root)
+        contract = w3.eth.contract(
+            address=config["contract_address"], abi=config["abi"]
+        )
 
-            if is_zk and is_vc and is_merkle:
 
-                print(f"Verified update from {sender}")
+        for reply in incoming_replies:
 
-                verified_updates.append(reply)
+            sender = reply["sender_did"]
+
+            try:
+
+                is_zk = Analyst.verify_zk_proof(
+                    reply["sender_address"],
+                    reply["challenge_context"],
+                    reply["proof_nizkp"],
+                )
+
+                is_vc = Analyst.verify_vc_issuer(reply["vc"])
+
+                vc_string = json.dumps(reply["vc"], sort_keys=True)
+
+                proof = reply.get("merkle_proof")
+
+                issuer = reply["vc"]["payload"]["issuer"]
+
+                root = contract.functions.getMerkleRoot(issuer).call()
+
+                is_merkle = False
+
+                if proof and root:
+
+                    is_merkle = verify_merkle_proof(
+                        vc_string,
+                        proof,
+                        root
+                    )
+
+                if is_zk and is_vc and is_merkle:
+
+                    print("Verified update from:", sender)
+
+                    verified_updates.append(reply)
+
+                else:
+
+                    print("Rejected update from:", sender)
+
+                    rejected_updates += 1
+
+            except Exception as e:
+
+                print("Verification error:", e)
+
+
+        if len(verified_updates) == 0:
+
+            print("No valid updates received")
+
+            time.sleep(10)
+
+            continue
+
+
+        print("\n[Aggregation] Starting Federated Averaging")
+
+
+        first_weights = verified_updates[0]["weights"]
+
+        first_tensor = torch.tensor(list(first_weights.values())[0])
+
+
+        if len(first_tensor.shape) > 1:
+            input_dim = first_tensor.shape[1]
+        else:
+            input_dim = first_tensor.shape[0]
+
+
+        model = HybridDL(input_dim)
+
+
+        if os.path.exists(MODEL_LATEST):
+
+            print("[Model] Loading previous global model")
+
+            model.load_state_dict(torch.load(MODEL_LATEST), strict=False)
+
+
+        agg_weights = {}
+
+        total_samples = 0
+
+
+        print("\n[Client Contributions]")
+
+        for update in verified_updates:
+
+            local_weights = {
+
+                k: torch.tensor(v)
+
+                for k, v in update["weights"].items()
+
+            }
+
+            samples = update["meta"]["data_rows"]
+
+            print(update["sender_did"], ":", samples, "samples")
+
+            if not agg_weights:
+
+                for k in local_weights:
+
+                    agg_weights[k] = local_weights[k] * samples
 
             else:
 
-                print(f"Rejected update from {sender}")
+                for k in agg_weights:
 
-        except Exception as e:
+                    agg_weights[k] += local_weights[k] * samples
 
-            print("Verification error:", e)
+            total_samples += samples
 
-    if len(verified_updates) == 0:
 
-        print("No valid updates")
+        for k in agg_weights:
 
-        return
+            agg_weights[k] = agg_weights[k] / total_samples
 
-    first_weights = verified_updates[0]["weights"]
 
-    first_tensor = torch.tensor(list(first_weights.values())[0])
+        model.load_state_dict(agg_weights, strict=False)
 
-    if len(first_tensor.shape) > 1:
-        input_dim = first_tensor.shape[1]
-    else:
-        input_dim = first_tensor.shape[0]
+        torch.save(model.state_dict(), MODEL_LATEST)
 
-    model = HybridDL(input_dim)
 
-    if os.path.exists(MODEL_LATEST):
+        aggregation_time = time.time() - start_round_time
 
-        print("Loading existing global model")
+        avg_samples = total_samples / len(verified_updates)
 
-        model.load_state_dict(torch.load(MODEL_LATEST), strict=False)
 
-    else:
+        param_count = sum(p.numel() for p in model.parameters())
 
-        print("No pretrained model found")
+        model_size = os.path.getsize(MODEL_LATEST) / 1024
 
-    agg_weights = {}
 
-    total_samples = 0
+        print("\n====================================")
+        print("Federated Round Summary")
+        print("====================================")
 
-    for update in verified_updates:
+        print("Participating Clients:", len(verified_updates))
+        print("Rejected Clients:", rejected_updates)
+        print("Total Training Samples:", total_samples)
+        print("Average Samples per Client:", int(avg_samples))
+        print("Aggregation Time:", round(aggregation_time, 2), "seconds")
+        print("Model Parameters:", param_count)
+        print("Model Size:", round(model_size, 2), "KB")
 
-        local_weights = {k: torch.tensor(v) for k, v in update["weights"].items()}
+        print("\nGlobal Model Updated:", MODEL_LATEST)
 
-        samples = update["meta"]["data_rows"]
 
-        if not agg_weights:
+        metrics = {
 
-            for k in local_weights:
+            "round": round_number,
+            "clients": len(verified_updates),
+            "rejected": rejected_updates,
+            "total_samples": total_samples,
+            "avg_samples": avg_samples,
+            "aggregation_time": aggregation_time,
+            "model_size_kb": model_size
 
-                agg_weights[k] = local_weights[k] * samples
+        }
 
-        else:
 
-            for k in agg_weights:
+        df = pd.DataFrame([metrics])
 
-                agg_weights[k] += local_weights[k] * samples
 
-        total_samples += samples
+        if os.path.exists(METRICS_FILE):
 
-    for k in agg_weights:
+            old = pd.read_csv(METRICS_FILE)
 
-        agg_weights[k] = agg_weights[k] / total_samples
+            df = pd.concat([old, df], ignore_index=True)
 
-    model.load_state_dict(agg_weights, strict=False)
 
-    version = get_next_version()
+        df.to_csv(METRICS_FILE, index=False)
 
-    version_file = f"global_model_v{version}.pth"
 
-    torch.save(model.state_dict(), version_file)
+        print("\n[Metrics] Saved to", METRICS_FILE)
 
-    torch.save(model.state_dict(), MODEL_LATEST)
 
-    print(f"\nGlobal model updated")
+        round_number += 1
 
-    print(f"Saved version: {version_file}")
 
-    print("Updated global_model_final.pth")
+        print("\nNext round starting in 15 seconds")
+
+        time.sleep(15)
 
 
 if __name__ == "__main__":

@@ -3,9 +3,20 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import (
+    confusion_matrix,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_curve,
+    auc
+)
+
 from fl_utils import HybridDL, preprocess_data
+
 
 SEED = 42
 torch.manual_seed(SEED)
@@ -27,7 +38,7 @@ def evaluate_ml_metrics():
         os.path.exists("dataset_owner_2.csv") and
         os.path.exists("dataset_owner_3.csv")
     ):
-        print("❌ Required datasets not found")
+        print("Required datasets not found")
         return
 
     print("[Setup] Using Owner 1 + Owner 2 for training")
@@ -89,9 +100,11 @@ def evaluate_ml_metrics():
 
             preds_private_cls = (preds_private > 0.5).int().numpy()
 
+            probs = preds_private.numpy()
+
     except FileNotFoundError:
 
-        print("❌ global_model_final.pth not found")
+        print("global_model_final.pth not found")
 
         return
 
@@ -107,7 +120,7 @@ def evaluate_ml_metrics():
     print(cm)
 
     if cm.shape != (2, 2):
-        print("❌ Dataset not binary classification")
+        print("Dataset not binary classification")
         return
 
     tn, fp, fn, tp = cm.ravel()
@@ -124,6 +137,37 @@ def evaluate_ml_metrics():
     print(f"Precision: {precision:.4f}")
     print(f"Recall:    {recall:.4f}")
     print(f"F1-Score:  {f1:.4f}")
+
+    # --------------------------------------------------
+    # ROC CURVE
+    # --------------------------------------------------
+
+    fpr, tpr, thresholds = roc_curve(y_test_np, probs)
+
+    roc_auc = auc(fpr, tpr)
+
+    print(f"\nROC AUC Score: {roc_auc:.4f}")
+
+    plt.figure()
+
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.3f}")
+
+    plt.plot([0,1],[0,1],'r--')
+
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curve - Federated IDS Model")
+
+    plt.legend(loc="lower right")
+
+    plt.grid(True)
+
+    plt.savefig("roc_curve.png")
+
+    print("ROC curve saved as roc_curve.png")
+
+    # show the graph
+    plt.show()
 
     # --------------------------------------------------
     # BASELINE MODEL

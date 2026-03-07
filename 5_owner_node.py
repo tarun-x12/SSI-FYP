@@ -28,7 +28,12 @@ incoming_requests = []
 def on_request_received(msg):
 
     if msg.get("type") == "M1":
-        print(f"\n[Cloud] Received Request (M1) from {msg['from']}")
+
+        print("\n===================================")
+        print("[Cloud] Federated Training Request Received")
+        print("From:", msg["from"])
+        print("===================================\n")
+
         incoming_requests.append(msg)
 
 
@@ -42,29 +47,42 @@ def run_owner_node(owner_index):
     dataset_file = f"dataset_owner_{owner_index}.csv"
     vc_filename = f"vc_owner_{owner_index}.json"
 
-    print(f"--- Booting {owner_name} ---")
+    print("\n-----------------------------------")
+    print(f"Booting {owner_name}")
+    print("-----------------------------------")
 
     pkey = get_ganache_key(ganache_index)
 
     Owner = SSIEntity(owner_name, pkey, config["contract_address"])
 
     try:
+
+        print("[Blockchain] Registering DID on chain...")
         Owner.register_on_blockchain()
+        print("[Blockchain] Registration complete")
+
     except Exception as e:
-        print("Registration warning:", e)
+
+        print("[Blockchain] Registration warning:", e)
 
     if not os.path.exists(vc_filename):
-        print("VC file missing")
+
+        print("[Error] VC file missing")
         return
 
     my_vc = load_json(vc_filename)
 
     cloud = CloudAgentClient(Owner.did, on_request_received)
+
     cloud.connect()
 
     contract = get_contract(config["contract_address"])
 
-    print(f"[{owner_name}] Listening for requests...")
+    print(f"\n[{owner_name}] Node started")
+    print(f"[{owner_name}] DID:", Owner.did)
+    print(f"[{owner_name}] Dataset:", dataset_file)
+    print(f"[{owner_name}] Waiting for FL requests...\n")
+
 
     while True:
 
@@ -75,7 +93,11 @@ def run_owner_node(owner_index):
             req = msg["payload"]
             sender_did = msg["from"]
 
-            print(f"[{owner_name}] Verifying Analyst")
+            print("\n-----------------------------------")
+            print(f"[{owner_name}] Analyst request received")
+            print("-----------------------------------")
+
+            print("[Security] Verifying analyst identity...")
 
             try:
 
@@ -87,7 +109,10 @@ def run_owner_node(owner_index):
                     req["proof_nizkp"]
                 )
 
+                print("[Security] ZK Proof:", is_zk)
+
                 is_vc = Owner.verify_vc_issuer(req["vc"])
+                print("[Security] VC Valid:", is_vc)
 
                 issuer_did = req["vc"]["payload"]["issuer"]
 
@@ -95,6 +120,8 @@ def run_owner_node(owner_index):
                 ri_real_did = SSIEntity("RI", ri_key).did
 
                 is_policy_valid = issuer_did == ri_real_did
+                print("[Security] Issuer Policy Valid:", is_policy_valid)
+
 
                 # --- merkle check ---
                 is_merkle_valid = False
@@ -121,17 +148,26 @@ def run_owner_node(owner_index):
                 except:
                     pass
 
+                print("[Security] Merkle Proof Valid:", is_merkle_valid)
+
+
                 if is_zk and is_vc and is_merkle_valid and is_policy_valid:
 
-                    print(f"[{owner_name}] Trusted Analyst")
+                    print("\n[Security] Analyst Trusted")
+                    print("[FL] Starting Local Training")
 
                     # ----- TRAIN MODEL -----
 
+                    print("[Dataset] Loading dataset...")
                     raw_df = pd.read_csv(dataset_file)
 
+                    print("[Dataset] Rows:", len(raw_df))
+
+                    print("[Preprocessing] Cleaning + scaling data...")
                     X_proc, y_proc = preprocess_data(raw_df)
 
-                    X_priv = apply_ldp(X_proc, epsilon=20.0)
+                    print("[Privacy] Applying Local Differential Privacy...")
+                    X_priv = apply_ldp(X_proc, epsilon=2.0)
 
                     X_tensor = torch.FloatTensor(X_priv)
                     y_tensor = torch.FloatTensor(y_proc).unsqueeze(1)
@@ -143,7 +179,9 @@ def run_owner_node(owner_index):
 
                     model.train()
 
-                    for epoch in range(800):
+                    print("[Training] Starting epochs...")
+
+                    for epoch in range(100):
 
                         optimizer.zero_grad()
 
@@ -154,12 +192,22 @@ def run_owner_node(owner_index):
                         loss.backward()
                         optimizer.step()
 
-                    print(f"[{owner_name}] Training Done (Loss={loss.item():.4f})")
+                        if epoch % 20 == 0:
+
+                            print(
+                                f"[Training] Epoch {epoch} | Loss {loss.item():.4f}"
+                            )
+
+                    print(f"[Training] Completed (Final Loss={loss.item():.4f})")
 
                     local_weights = model.state_dict()
 
                     weights_json = {
-                        k: v.tolist() for k, v in local_weights.items()
+
+                        k: v.tolist()
+
+                        for k, v in local_weights.items()
+
                     }
 
                     reply_ctx = f"FL_ACCEPT_{int(time.time())}"
@@ -169,6 +217,8 @@ def run_owner_node(owner_index):
                     my_proof_file = f"merkle_proof_owner_{owner_index}.json"
 
                     my_proof = load_json(my_proof_file) if os.path.exists(my_proof_file) else None
+
+                    print("[SSI] Generating response proof...")
 
                     reply_payload = {
 
@@ -189,17 +239,19 @@ def run_owner_node(owner_index):
                         "merkle_proof": my_proof
                     }
 
+                    print("[Cloud] Sending model update to analyst...")
+
                     cloud.send(sender_did, "M2", reply_payload)
 
-                    print(f"[{owner_name}] Model update sent")
+                    print("[FL] Model update sent successfully")
 
                 else:
 
-                    print("[Owner] Security verification failed")
+                    print("[Security] Verification failed - request rejected")
 
             except Exception as e:
 
-                print("Owner Error:", e)
+                print("[Owner Error]:", e)
 
         time.sleep(1)
 
