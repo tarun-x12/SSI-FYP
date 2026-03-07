@@ -37,42 +37,31 @@ def run_persistent_analyst():
         print("system_config.json missing")
         return
 
-
     print("\n====================================")
     print("Federated Analyst Node Started")
     print("====================================")
 
-
     PKEY_A = get_ganache_key(3)
 
     Analyst = SSIEntity("Data Analyst", PKEY_A, config["contract_address"])
-
 
     try:
         Analyst.register_on_blockchain()
     except:
         pass
 
-
     cloud = CloudAgentClient(Analyst.did, on_reply_received)
-
     cloud.connect()
-
 
     owner_files = glob.glob("vc_owner_*.json")
 
     if len(owner_files) == 0:
-
         print("No owner VCs found")
-
         return
-
 
     print(f"[Discovery] Found {len(owner_files)} dataset owners")
 
-
     round_number = 1
-
 
     while True:
 
@@ -83,7 +72,6 @@ def run_persistent_analyst():
         incoming_replies.clear()
 
         start_round_time = time.time()
-
 
         challenge = f"FL_SESSION_{int(time.time())}"
 
@@ -98,7 +86,6 @@ def run_persistent_analyst():
         except:
             pass
 
-
         payload = {
 
             "sender_did": Analyst.did,
@@ -108,7 +95,6 @@ def run_persistent_analyst():
             "challenge_context": challenge,
             "merkle_proof": merkle_proof,
         }
-
 
         sent = 0
 
@@ -131,36 +117,47 @@ def run_persistent_analyst():
 
             sent += 1
 
-
         print("\n[FL] Waiting for client updates")
 
-        while len(incoming_replies) < sent:
+        timeout = 150
+        start_wait = time.time()
+
+        while True:
+
+            received = len(incoming_replies)
 
             print(
-                f"\rReceived {len(incoming_replies)}/{sent} updates",
+                f"\rReceived {received}/{sent} expected updates",
                 end=""
             )
 
+            if received >= sent:
+                break
+
+            if time.time() - start_wait > timeout:
+                print("\n[FL] Timeout reached (150s), proceeding with available updates")
+                break
+
             time.sleep(2)
 
-
-        print("\n[FL] All updates received")
-
+        print("\n[FL] Update collection phase complete")
 
         print("\n[Verification] Checking updates")
 
         verified_updates = []
-
         rejected_updates = 0
 
         contract = w3.eth.contract(
             address=config["contract_address"], abi=config["abi"]
         )
 
-
         for reply in incoming_replies:
 
             sender = reply["sender_did"]
+
+            print("\n------------------------------------")
+            print("Incoming Update From:", sender)
+            print("------------------------------------")
 
             try:
 
@@ -170,13 +167,18 @@ def run_persistent_analyst():
                     reply["proof_nizkp"],
                 )
 
+                print("[Check] ZK Proof:", is_zk)
+
                 is_vc = Analyst.verify_vc_issuer(reply["vc"])
+
+                issuer = reply["vc"]["payload"]["issuer"]
+
+                print("[Check] VC Issuer:", issuer)
+                print("[Check] VC Valid:", is_vc)
 
                 vc_string = json.dumps(reply["vc"], sort_keys=True)
 
                 proof = reply.get("merkle_proof")
-
-                issuer = reply["vc"]["payload"]["issuer"]
 
                 root = contract.functions.getMerkleRoot(issuer).call()
 
@@ -190,22 +192,38 @@ def run_persistent_analyst():
                         root
                     )
 
+                print("[Check] Merkle Proof:", is_merkle)
+
                 if is_zk and is_vc and is_merkle:
 
-                    print("Verified update from:", sender)
+                    print("[Security] Update Accepted")
 
                     verified_updates.append(reply)
 
                 else:
 
-                    print("Rejected update from:", sender)
+                    print("[Security] Update Rejected")
+
+                    if not is_vc:
+
+                        print("⚠ SYBIL ATTACK DETECTED")
+                        print("Reason: Credential issuer not trusted")
+
+                    elif not is_merkle:
+
+                        print("⚠ POSSIBLE FAKE IDENTITY")
+                        print("Reason: Credential not in trust registry")
+
+                    elif not is_zk:
+
+                        print("⚠ IDENTITY SPOOFING ATTEMPT")
+                        print("Reason: Zero-Knowledge proof failed")
 
                     rejected_updates += 1
 
             except Exception as e:
 
                 print("Verification error:", e)
-
 
         if len(verified_updates) == 0:
 
@@ -215,23 +233,18 @@ def run_persistent_analyst():
 
             continue
 
-
         print("\n[Aggregation] Starting Federated Averaging")
-
 
         first_weights = verified_updates[0]["weights"]
 
         first_tensor = torch.tensor(list(first_weights.values())[0])
-
 
         if len(first_tensor.shape) > 1:
             input_dim = first_tensor.shape[1]
         else:
             input_dim = first_tensor.shape[0]
 
-
         model = HybridDL(input_dim)
-
 
         if os.path.exists(MODEL_LATEST):
 
@@ -239,11 +252,9 @@ def run_persistent_analyst():
 
             model.load_state_dict(torch.load(MODEL_LATEST), strict=False)
 
-
         agg_weights = {}
 
         total_samples = 0
-
 
         print("\n[Client Contributions]")
 
@@ -264,37 +275,27 @@ def run_persistent_analyst():
             if not agg_weights:
 
                 for k in local_weights:
-
                     agg_weights[k] = local_weights[k] * samples
-
             else:
-
                 for k in agg_weights:
-
                     agg_weights[k] += local_weights[k] * samples
 
             total_samples += samples
 
-
         for k in agg_weights:
-
             agg_weights[k] = agg_weights[k] / total_samples
-
 
         model.load_state_dict(agg_weights, strict=False)
 
         torch.save(model.state_dict(), MODEL_LATEST)
 
-
         aggregation_time = time.time() - start_round_time
 
         avg_samples = total_samples / len(verified_updates)
 
-
         param_count = sum(p.numel() for p in model.parameters())
 
         model_size = os.path.getsize(MODEL_LATEST) / 1024
-
 
         print("\n====================================")
         print("Federated Round Summary")
@@ -310,7 +311,6 @@ def run_persistent_analyst():
 
         print("\nGlobal Model Updated:", MODEL_LATEST)
 
-
         metrics = {
 
             "round": round_number,
@@ -323,9 +323,7 @@ def run_persistent_analyst():
 
         }
 
-
         df = pd.DataFrame([metrics])
-
 
         if os.path.exists(METRICS_FILE):
 
@@ -333,15 +331,11 @@ def run_persistent_analyst():
 
             df = pd.concat([old, df], ignore_index=True)
 
-
         df.to_csv(METRICS_FILE, index=False)
-
 
         print("\n[Metrics] Saved to", METRICS_FILE)
 
-
         round_number += 1
-
 
         print("\nNext round starting in 15 seconds")
 
