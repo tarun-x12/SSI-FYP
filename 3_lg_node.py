@@ -51,13 +51,13 @@ def run_lg_node():
         valid_vc_strings.append(vc_str)
 
     # --- NOVELTY: GENERATE OWNER MERKLE TREE ---
-    print("\n--- [LG] Building Hospital Trust Tree (HBMT) ---")
+    print("\n--- [LG] Building IDS Clients Trust Tree (HBMT) ---")
     
     # Build Tree from valid VCs
     mt = MerkleTree(valid_vc_strings)
     root = mt.get_root()
     
-    print(f"[LG] Generated Hospital Root: {root[:15]}...")
+    print(f"[LG] Generated IDS Client Root: {root[:15]}...")
     
     # Publish Root to Blockchain
     print("[LG] 📡 Publishing Root to Blockchain...")
@@ -70,7 +70,7 @@ def run_lg_node():
     })
     signed_tx = w3.eth.account.sign_transaction(tx, LG.account.key)
     w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    print("[LG] ✅ Hospital Allowlist is Active on Blockchain.")
+    print("[LG] ✅ IDS Clients Allowlist is Active on Blockchain.")
 
     # --- ISSUE PROOFS TO OWNERS ---
     # Owners need these proofs to join the Federated Learning rounds

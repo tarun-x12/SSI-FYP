@@ -15,12 +15,10 @@ from cloud_client import CloudAgentClient
 from merkle_utils import verify_merkle_proof
 
 
-# ---- GLOBAL SEED ----
 SEED = 42
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
-
 
 incoming_requests = []
 
@@ -101,8 +99,6 @@ def run_owner_node(owner_index):
 
             try:
 
-                # --- security checks ---
-
                 is_zk = Owner.verify_zk_proof(
                     req["sender_address"],
                     req["challenge_context"],
@@ -123,19 +119,32 @@ def run_owner_node(owner_index):
                 print("[Security] Issuer Policy Valid:", is_policy_valid)
 
 
-                # --- merkle check ---
+                # -------------------------------
+                # MERKLE LICENSE CHECK
+                # -------------------------------
                 is_merkle_valid = False
 
                 try:
 
-                    vc_string = json.dumps(req["vc"], sort_keys=True)
-                    proof = req.get("merkle_proof")
+                    vc_string = json.dumps(my_vc, sort_keys=True)
+
+                    proof_file = f"merkle_proof_owner_{owner_index}.json"
+
+                    if os.path.exists(proof_file):
+                        proof = load_json(proof_file)
+                    else:
+                        proof = None
 
                     if proof:
 
+                        lg_key = get_ganache_key(2)
+                        lg_did = SSIEntity("Local Government", lg_key).did
+
                         blockchain_root = contract.functions.getMerkleRoot(
-                            issuer_did
+                            lg_did
                         ).call()
+
+                        print("[Debug] Blockchain Root:", blockchain_root)
 
                         if blockchain_root:
 
@@ -145,18 +154,61 @@ def run_owner_node(owner_index):
                                 blockchain_root
                             )
 
-                except:
-                    pass
+                except Exception as e:
+                    print("[Merkle Check Error]:", e)
 
                 print("[Security] Merkle Proof Valid:", is_merkle_valid)
+
+
+                if not is_merkle_valid:
+
+                    print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("[Owner] CRITICAL ALERT: IDS CLIENT LICENSE REVOKED")
+                    print("[Owner] The Government has removed you from the Trust List.")
+                    print("[Owner] Aborting Training. Access Denied.")
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+
+                    continue
 
 
                 if is_zk and is_vc and is_merkle_valid and is_policy_valid:
 
                     print("\n[Security] Analyst Trusted")
+
+                    print("[Audit] Logging authorization event on blockchain...")
+
+                    try:
+
+                        tx = contract.functions.logAudit(
+                            Owner.did,
+                            sender_did,
+                            "TRAINING_AUTH_SUCCESS"
+                        ).build_transaction({
+
+                            "from": Owner.address,
+                            "nonce": w3.eth.get_transaction_count(Owner.address),
+                            "gas": 3000000,
+                            "gasPrice": w3.to_wei("20", "gwei")
+
+                        })
+
+                        signed_tx = w3.eth.account.sign_transaction(
+                            tx,
+                            Owner.account.key
+                        )
+
+                        tx_hash = w3.eth.send_raw_transaction(
+                            signed_tx.raw_transaction
+                        )
+
+                        print("[Audit] Blockchain Audit Recorded:", tx_hash.hex())
+
+                    except Exception as e:
+
+                        print("[Audit] Logging failed:", e)
+
                     print("[FL] Starting Local Training")
 
-                    # ----- TRAIN MODEL -----
 
                     print("[Dataset] Loading dataset...")
                     raw_df = pd.read_csv(dataset_file)
@@ -200,12 +252,12 @@ def run_owner_node(owner_index):
 
                     print(f"[Training] Completed (Final Loss={loss.item():.4f})")
 
+
                     local_weights = model.state_dict()
 
                     weights_json = {
 
                         k: v.tolist()
-
                         for k, v in local_weights.items()
 
                     }
@@ -214,9 +266,9 @@ def run_owner_node(owner_index):
 
                     proof_pr_o = Owner.generate_zk_proof(reply_ctx)
 
-                    my_proof_file = f"merkle_proof_owner_{owner_index}.json"
+                    proof_file = f"merkle_proof_owner_{owner_index}.json"
 
-                    my_proof = load_json(my_proof_file) if os.path.exists(my_proof_file) else None
+                    my_proof = load_json(proof_file) if os.path.exists(proof_file) else None
 
                     print("[SSI] Generating response proof...")
 

@@ -5,7 +5,7 @@ from key_manager import get_ganache_key
 
 def revoke_hospital():
     print("\n" + "="*60)
-    print("      🏥  LOCAL GOV SECURITY CONSOLE: HOSPITAL BAN      ")
+    print("      🏥  LOCAL GOV SECURITY CONSOLE: IDS CLIENT BAN      ")
     print("="*60)
 
     # 1. SETUP
@@ -25,7 +25,7 @@ def revoke_hospital():
         try:
             vc = load_json(f"vc_owner_{i}.json")
             hospitals[str(i)] = {
-                "name": f"City Hospital {i}", 
+                "name": f"IDS Client {i}", 
                 "did": vc['payload']['credentialSubject']['id'],
                 "data": json.dumps(vc, sort_keys=True)
             }
@@ -33,13 +33,13 @@ def revoke_hospital():
             pass
 
     # 3. INTERACTIVE MENU
-    print(f"\n[Status] Managing {len(hospitals)} Authorized Hospitals.")
-    print("Which Hospital is compromised/poisoning the model?\n")
+    print(f"\n[Status] Managing {len(hospitals)} Authorized IDS Clients.")
+    print("Which IDS Client is compromised/poisoning the model?\n")
     
     for key, info in hospitals.items():
         print(f"   [{key}] {info['name']} ({info['did'][:18]}...)")
     
-    choice = input("\n👉 Select Hospital ID to BAN: ").strip()
+    choice = input("\n👉 Select IDS Client ID to BAN: ").strip()
 
     if choice not in hospitals:
         print("❌ Invalid selection.")
@@ -68,7 +68,7 @@ def revoke_hospital():
     mt = MerkleTree(new_valid_list)
     new_root = mt.get_root()
     
-    print(f"\n[Result] New Hospital Root: {new_root[:15]}...")
+    print(f"\n[Result] New IDS Client Root: {new_root[:15]}...")
 
     # 5. UPDATE BLOCKCHAIN
     print("[Blockchain] 📡 Updating Ledger...")
@@ -84,7 +84,7 @@ def revoke_hospital():
         print(f"[Success] ✅ Root updated on Blockchain.")
         
         # --- NEW STEP: ISSUE FRESH PROOFS TO SURVIVORS ---
-        print("\n[Maintenance] 🔄 Issuing NEW Merkle Proofs to valid hospitals...")
+        print("\n[Maintenance] 🔄 Issuing NEW Merkle Proofs to valid IDS Clients...")
         for i, vc_str in enumerate(new_valid_list):
             proof = mt.get_proof(vc_str)
             owner_id = valid_indices[i] # Get the original ID (e.g., "1" or "3")
