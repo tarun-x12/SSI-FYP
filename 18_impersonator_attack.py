@@ -22,6 +22,18 @@ def run_impersonator_attack():
         print("❌ Error: vc_owner_1.json not found. Run 3_lg_node.py first.")
         return
 
+    # --- THE FIX: Steal the Merkle Proof too ---
+    try:
+        stolen_merkle = load_json("merkle_proof_owner_1.json")
+    except:
+        print("⚠️ Warning: merkle_proof_owner_1.json not found. Using empty proof.")
+        stolen_merkle = []
+
+    # --- THE FIX: Extract the Victim's Address ---
+    # We must force the Analyst to look up the REAL Owner's public key, 
+    # so the Hacker's fake math gets rejected.
+    target_address = target_did.split(":")[-1]
+
     # 2. THE HACKER: Initialize with a DIFFERENT Key (Index 9)
     # The hacker does NOT have Owner 1's key (Index 4).
     hacker_key = get_ganache_key(9) 
@@ -45,14 +57,14 @@ def run_impersonator_attack():
 
             # MALICIOUS PAYLOAD
             reply_payload = {
-                "sender_did": target_did, # <--- CLAIMING TO BE OWNER 1
-                "sender_address": Hacker.address, # (Irrelevant, Analyst looks at DID)
-                "vc": stolen_vc,          # <--- USING VALID STOLEN FILE
-                "proof_nizkp": fake_proof,# <--- INVALID SIGNATURE
+                "sender_did": target_did, 
+                "sender_address": target_address, # <--- FIXED
+                "vc": stolen_vc,          
+                "proof_nizkp": fake_proof,
                 "challenge_context": challenge,
                 "weights": {"layer1": [0.0]}, 
                 "meta": {"data_rows": 100},
-                "merkle_proof": [] 
+                "merkle_proof": stolen_merkle # <--- FIXED
             }
 
             cloud.send(sender_did, "M2", reply_payload)

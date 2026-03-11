@@ -22,7 +22,7 @@ def attempt_coup():
     print(f"[Hacker] Generated Identity: {Hacker.did}")
     
     # 3. ATTEMPT TO OVERWRITE MERKLE ROOT
-    print("[Hacker] Attempting to overwrite Hospital Trust Root...")
+    print("[Hacker] Attempting to overwrite IDS Trust Root...")
     fake_root = "0xDEADBEEF00000000000000000000000000000000000000000000000000000000"
     
     try:
