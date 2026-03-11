@@ -1,0 +1,2 @@
+Total_Rounds,Execution_Time_sec,Communication_Cost_bits,Transactions,Latency_sec,Throughput_tx_per_sec
+20,13.10422968864441,15014096,120,0.10920191407203675,9.157348646291442

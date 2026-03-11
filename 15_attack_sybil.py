@@ -2,6 +2,7 @@ import time
 from ssi_utils import SSIEntity, load_json
 from key_manager import get_ganache_key
 from cloud_client import CloudAgentClient
+from relay_keepalive import start_relay_keepalive
 
 def run_sybil_attack():
     print("\n" + "="*60)

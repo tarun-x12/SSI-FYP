@@ -13,7 +13,7 @@ from key_manager import get_ganache_key
 from fl_utils import HybridDL, preprocess_data, apply_ldp
 from cloud_client import CloudAgentClient
 from merkle_utils import verify_merkle_proof
-
+from relay_keepalive import start_relay_keepalive
 
 SEED = 42
 torch.manual_seed(SEED)
@@ -74,13 +74,20 @@ def run_owner_node(owner_index):
 
     cloud.connect()
 
+    print("[Cloud] Connected to Cloud Relay")
+    print("[Cloud] Ready for Secure Messaging")
+
+    # -------------------------------
+    # START RELAY KEEPALIVE
+    # -------------------------------
+    start_relay_keepalive(cloud)
+
     contract = get_contract(config["contract_address"])
 
     print(f"\n[{owner_name}] Node started")
     print(f"[{owner_name}] DID:", Owner.did)
     print(f"[{owner_name}] Dataset:", dataset_file)
     print(f"[{owner_name}] Waiting for FL requests...\n")
-
 
     while True:
 
@@ -118,7 +125,6 @@ def run_owner_node(owner_index):
                 is_policy_valid = issuer_did == ri_real_did
                 print("[Security] Issuer Policy Valid:", is_policy_valid)
 
-
                 # -------------------------------
                 # MERKLE LICENSE CHECK
                 # -------------------------------
@@ -130,10 +136,7 @@ def run_owner_node(owner_index):
 
                     proof_file = f"merkle_proof_owner_{owner_index}.json"
 
-                    if os.path.exists(proof_file):
-                        proof = load_json(proof_file)
-                    else:
-                        proof = None
+                    proof = load_json(proof_file) if os.path.exists(proof_file) else None
 
                     if proof:
 
@@ -143,8 +146,6 @@ def run_owner_node(owner_index):
                         blockchain_root = contract.functions.getMerkleRoot(
                             lg_did
                         ).call()
-
-                        print("[Debug] Blockchain Root:", blockchain_root)
 
                         if blockchain_root:
 
@@ -159,66 +160,24 @@ def run_owner_node(owner_index):
 
                 print("[Security] Merkle Proof Valid:", is_merkle_valid)
 
-
                 if not is_merkle_valid:
 
                     print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print("[Owner] CRITICAL ALERT: IDS CLIENT LICENSE REVOKED")
-                    print("[Owner] The Government has removed you from the Trust List.")
-                    print("[Owner] Aborting Training. Access Denied.")
+                    print("[Owner] LICENSE REVOKED – ACCESS DENIED")
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
 
                     continue
-
 
                 if is_zk and is_vc and is_merkle_valid and is_policy_valid:
 
                     print("\n[Security] Analyst Trusted")
 
-                    print("[Audit] Logging authorization event on blockchain...")
-
-                    try:
-
-                        tx = contract.functions.logAudit(
-                            Owner.did,
-                            sender_did,
-                            "TRAINING_AUTH_SUCCESS"
-                        ).build_transaction({
-
-                            "from": Owner.address,
-                            "nonce": w3.eth.get_transaction_count(Owner.address),
-                            "gas": 3000000,
-                            "gasPrice": w3.to_wei("20", "gwei")
-
-                        })
-
-                        signed_tx = w3.eth.account.sign_transaction(
-                            tx,
-                            Owner.account.key
-                        )
-
-                        tx_hash = w3.eth.send_raw_transaction(
-                            signed_tx.raw_transaction
-                        )
-
-                        print("[Audit] Blockchain Audit Recorded:", tx_hash.hex())
-
-                    except Exception as e:
-
-                        print("[Audit] Logging failed:", e)
-
                     print("[FL] Starting Local Training")
 
-
-                    print("[Dataset] Loading dataset...")
                     raw_df = pd.read_csv(dataset_file)
 
-                    print("[Dataset] Rows:", len(raw_df))
-
-                    print("[Preprocessing] Cleaning + scaling data...")
                     X_proc, y_proc = preprocess_data(raw_df)
 
-                    print("[Privacy] Applying Local Differential Privacy...")
                     X_priv = apply_ldp(X_proc, epsilon=2.0)
 
                     X_tensor = torch.FloatTensor(X_priv)
@@ -230,8 +189,6 @@ def run_owner_node(owner_index):
                     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
                     model.train()
-
-                    print("[Training] Starting epochs...")
 
                     for epoch in range(100):
 
@@ -250,8 +207,7 @@ def run_owner_node(owner_index):
                                 f"[Training] Epoch {epoch} | Loss {loss.item():.4f}"
                             )
 
-                    print(f"[Training] Completed (Final Loss={loss.item():.4f})")
-
+                    print(f"[Training] Completed (Loss={loss.item():.4f})")
 
                     local_weights = model.state_dict()
 
@@ -269,8 +225,6 @@ def run_owner_node(owner_index):
                     proof_file = f"merkle_proof_owner_{owner_index}.json"
 
                     my_proof = load_json(proof_file) if os.path.exists(proof_file) else None
-
-                    print("[SSI] Generating response proof...")
 
                     reply_payload = {
 

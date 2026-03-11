@@ -10,10 +10,12 @@ from key_manager import get_ganache_key
 from cloud_client import CloudAgentClient
 from merkle_utils import verify_merkle_proof
 from fl_utils import HybridDL
-
+from relay_keepalive import start_relay_keepalive
 
 MODEL_LATEST = "global_model_final.pth"
 METRICS_FILE = "fl_training_metrics.csv"
+
+MAX_ROUNDS = 100
 
 incoming_replies = []
 
@@ -53,6 +55,12 @@ def run_persistent_analyst():
     cloud = CloudAgentClient(Analyst.did, on_reply_received)
     cloud.connect()
 
+    print("Connected to Cloud Relay.")
+    print("Ready for Secure Messaging.")
+
+    # start relay keepalive
+    start_relay_keepalive(cloud)
+
     owner_files = glob.glob("vc_owner_*.json")
 
     if len(owner_files) == 0:
@@ -64,6 +72,10 @@ def run_persistent_analyst():
     round_number = 1
 
     while True:
+
+        if round_number > MAX_ROUNDS:
+            print("\nReached maximum rounds. Analyst shutting down.")
+            break
 
         print("\n====================================")
         print(f"Federated Round {round_number}")
@@ -94,6 +106,7 @@ def run_persistent_analyst():
             "proof_nizkp": proof,
             "challenge_context": challenge,
             "merkle_proof": merkle_proof,
+
         }
 
         sent = 0
@@ -135,8 +148,11 @@ def run_persistent_analyst():
                 break
 
             if time.time() - start_wait > timeout:
-                print("\n[FL] Timeout reached (150s), proceeding with available updates")
+                print("\n[FL] Timeout reached (60s), proceeding with available updates")
                 break
+
+            # keep relay active
+            cloud.send(Analyst.did, "PING", {})
 
             time.sleep(2)
 
@@ -148,7 +164,8 @@ def run_persistent_analyst():
         rejected_updates = 0
 
         contract = w3.eth.contract(
-            address=config["contract_address"], abi=config["abi"]
+            address=config["contract_address"],
+            abi=config["abi"]
         )
 
         for reply in incoming_replies:
@@ -204,21 +221,6 @@ def run_persistent_analyst():
 
                     print("[Security] Update Rejected")
 
-                    if not is_vc:
-
-                        print("⚠ SYBIL ATTACK DETECTED")
-                        print("Reason: Credential issuer not trusted")
-
-                    elif not is_merkle:
-
-                        print("⚠ POSSIBLE FAKE IDENTITY")
-                        print("Reason: Credential not in trust registry")
-
-                    elif not is_zk:
-
-                        print("⚠ IDENTITY SPOOFING ATTEMPT")
-                        print("Reason: Zero-Knowledge proof failed")
-
                     rejected_updates += 1
 
             except Exception as e:
@@ -230,6 +232,8 @@ def run_persistent_analyst():
             print("No valid updates received")
 
             time.sleep(10)
+
+            round_number += 1
 
             continue
 
@@ -250,7 +254,10 @@ def run_persistent_analyst():
 
             print("[Model] Loading previous global model")
 
-            model.load_state_dict(torch.load(MODEL_LATEST), strict=False)
+            model.load_state_dict(
+                torch.load(MODEL_LATEST),
+                strict=False
+            )
 
         agg_weights = {}
 
@@ -276,7 +283,9 @@ def run_persistent_analyst():
 
                 for k in local_weights:
                     agg_weights[k] = local_weights[k] * samples
+
             else:
+
                 for k in agg_weights:
                     agg_weights[k] += local_weights[k] * samples
 
@@ -309,8 +318,6 @@ def run_persistent_analyst():
         print("Model Parameters:", param_count)
         print("Model Size:", round(model_size, 2), "KB")
 
-        print("\nGlobal Model Updated:", MODEL_LATEST)
-
         metrics = {
 
             "round": round_number,
@@ -337,9 +344,9 @@ def run_persistent_analyst():
 
         round_number += 1
 
-        print("\nNext round starting in 15 seconds")
+        print("\nNext round starting in 10 seconds")
 
-        time.sleep(15)
+        time.sleep(10)
 
 
 if __name__ == "__main__":

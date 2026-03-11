@@ -3,84 +3,128 @@ import json
 from ssi_utils import SSIEntity, load_json
 from key_manager import get_ganache_key
 from cloud_client import CloudAgentClient
+from relay_keepalive import start_relay_keepalive
+
 
 def run_impersonator_attack():
+
     print("\n" + "="*60)
-    print("      🎭  TEST CASE: IMPERSONATOR ATTACK      ")
-    print("      (Hacker steals a VC file but lacks the Private Key)")
+    print("      TEST CASE: IMPERSONATOR ATTACK")
+    print("      (Hacker steals a VC but lacks private key)")
     print("="*60)
 
     config = load_json("system_config.json")
 
-    # 1. THE THEFT: Load a VALID Credential (Owner 1)
+    # --------------------------------------
+    # 1. STEAL OWNER CREDENTIAL
+    # --------------------------------------
+
     try:
+
         stolen_vc = load_json("vc_owner_1.json")
-        target_did = stolen_vc['payload']['credentialSubject']['id']
-        print(f"[Hacker] 📂 Stolen Credential for: {target_did}")
-        print("[Hacker]    Claims: 'Authorized Hospital'")
+
+        target_did = stolen_vc["payload"]["credentialSubject"]["id"]
+
+        print("[Hacker] Stolen Credential for:", target_did)
+
     except:
-        print("❌ Error: vc_owner_1.json not found. Run 3_lg_node.py first.")
+
+        print("Error: vc_owner_1.json not found")
         return
 
-    # --- THE FIX: Steal the Merkle Proof too ---
+    # steal merkle proof
+
     try:
         stolen_merkle = load_json("merkle_proof_owner_1.json")
     except:
-        print("⚠️ Warning: merkle_proof_owner_1.json not found. Using empty proof.")
+        print("Warning: Merkle proof not found")
         stolen_merkle = []
 
-    # --- THE FIX: Extract the Victim's Address ---
-    # We must force the Analyst to look up the REAL Owner's public key, 
-    # so the Hacker's fake math gets rejected.
+    # extract victim address
+
     target_address = target_did.split(":")[-1]
 
-    # 2. THE HACKER: Initialize with a DIFFERENT Key (Index 9)
-    # The hacker does NOT have Owner 1's key (Index 4).
-    hacker_key = get_ganache_key(9) 
-    Hacker = SSIEntity("Identity Thief", hacker_key, config['contract_address'])
-    
-    # 3. CONNECT TO ANALYST
-    print(f"[Hacker] 🔌 Connecting to Analyst as '{target_did}'...")
+    # --------------------------------------
+    # 2. CREATE HACKER IDENTITY
+    # --------------------------------------
+
+    hacker_key = get_ganache_key(9)
+
+    Hacker = SSIEntity(
+        "Identity Thief",
+        hacker_key,
+        config["contract_address"]
+    )
+
+    print("[Hacker] Fake identity created")
+    print("[Hacker] Address:", Hacker.address)
+
+    # --------------------------------------
+    # 3. HANDLE ANALYST CHALLENGE
+    # --------------------------------------
 
     def on_request(msg):
-        if msg.get('type') == 'M1':
-            sender_did = msg['from']
-            challenge = msg['payload']['challenge_context']
-            
-            print(f"\n[Hacker] 📩 Received Login Challenge: '{challenge}'")
-            print(f"[Hacker] 😈 Signing challenge with WRONG Private Key...")
 
-            # --- THE ATTACK ---
-            # We are generating the proof using the HACKER'S key, 
-            # but we are presenting the OWNER'S Identity (target_did).
+        if msg.get("type") == "M1":
+
+            sender_did = msg["from"]
+
+            challenge = msg["payload"]["challenge_context"]
+
+            print("\n[Hacker] Challenge received:", challenge)
+
+            print("[Hacker] Signing with WRONG private key")
+
             fake_proof = Hacker.generate_zk_proof(challenge)
 
-            # MALICIOUS PAYLOAD
             reply_payload = {
-                "sender_did": target_did, 
-                "sender_address": target_address, # <--- FIXED
-                "vc": stolen_vc,          
+
+                "sender_did": target_did,
+                "sender_address": target_address,
+
+                "vc": stolen_vc,
+
                 "proof_nizkp": fake_proof,
                 "challenge_context": challenge,
-                "weights": {"layer1": [0.0]}, 
+
+                "weights": {"layer1": [0.0]},
                 "meta": {"data_rows": 100},
-                "merkle_proof": stolen_merkle # <--- FIXED
+
+                "merkle_proof": stolen_merkle
+
             }
 
             cloud.send(sender_did, "M2", reply_payload)
-            print("[Hacker] 📤 Fake Proof Sent. Watch Analyst Terminal!")
 
-    # We spoof our DID to match the stolen file so the Cloud routes messages to us
+            print("[Hacker] Fake proof sent to analyst")
+
+    # --------------------------------------
+    # 4. CONNECT TO CLOUD RELAY
+    # --------------------------------------
+
     cloud = CloudAgentClient(target_did, on_request)
+
+    print("[Hacker] Connecting to Cloud Relay")
+
     cloud.connect()
-    
-    print("[Hacker] Waiting for Analyst to request login...")
-    
+
+    print("[Cloud] Connected to Cloud Relay")
+    print("[Cloud] Ready for Secure Messaging")
+
+    # start relay keepalive
+    start_relay_keepalive(cloud)
+
+    print("[Hacker] Waiting for analyst request...")
+
     try:
+
         while True:
             time.sleep(1)
+
     except KeyboardInterrupt:
         pass
 
+
 if __name__ == "__main__":
+
     run_impersonator_attack()
