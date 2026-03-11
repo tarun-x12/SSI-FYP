@@ -4,7 +4,7 @@
             "VerifiableCredential"
         ],
         "issuer": "did:eth:0xc6baA51CbCcaF8a276aDc2ED1A11114101B6897a",
-        "issuanceDate": "2026-03-09T22:39:54Z",
+        "issuanceDate": "2026-03-11T03:48:52Z",
         "credentialSubject": {
             "id": "did:eth:0x6800Cb10931b79dA9Af9a231A7686c4304D5Cb54",
             "address": "0x6800Cb10931b79dA9Af9a231A7686c4304D5Cb54",
@@ -15,5 +15,5 @@
             }
         }
     },
-    "signature": "d027bd113a411ea82adc4a11796607f41d54f8e556bb2929206c69992d1467ff79a1d2aa1c5c9f75d88901a716eb5243d34ab167e9d2b03c6e8d4abfd44a389a1c"
+    "signature": "8f4d4e319889f1252a2ef89e6f4a59c94a9c7e3a1ccc4b196de9f36ec2a05a7c795b2aff97e5f127fb57c54b6e7406b4e3720bf4447734f699744b9959ae8d6d1b"
 }
