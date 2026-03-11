@@ -3,16 +3,16 @@
         "type": [
             "VerifiableCredential"
         ],
-        "issuer": "did:eth:0xD0e126e495cB42513FAbdf1682E73639e12D2567",
-        "issuanceDate": "2026-03-11T13:04:55Z",
+        "issuer": "did:eth:0xb1A28aDEA17561F444D7B5FFb02aE17161e5b9E8",
+        "issuanceDate": "2026-03-11T16:16:25Z",
         "credentialSubject": {
-            "id": "did:eth:0x6fC35D1097e704c62F1A4267A40BF8F0A8813e82",
-            "address": "0x6fC35D1097e704c62F1A4267A40BF8F0A8813e82",
+            "id": "did:eth:0xAe1C450B6e6d2Bd7407ba166E1aF613463d887B3",
+            "address": "0xAe1C450B6e6d2Bd7407ba166E1aF613463d887B3",
             "claims": {
                 "access_level": "researcher",
                 "clearance": "high"
             }
         }
     },
-    "signature": "b0aaca545ef081b4d41e8435e68dfb1e0308da367102964638a2db037140069d78cc916cc542238006dccc1dec33a8bae193a3b8445f025e7e2c8f43880082c81b"
+    "signature": "06ed506b5bcd3a3fd7bef6f86275b4ae49e1e2bcfbd76d76c555c2dbc889e838712678ddfa0831ecde70a17213755d74c4d58ad479000b63d70bba718bb8006b1c"
 }

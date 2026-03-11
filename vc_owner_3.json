@@ -3,11 +3,11 @@
         "type": [
             "VerifiableCredential"
         ],
-        "issuer": "did:eth:0xDBB34FadcEA3c5c531f2899A352160c65f04Ff8F",
-        "issuanceDate": "2026-03-11T13:04:59Z",
+        "issuer": "did:eth:0x06d75Dae63bf7469D5E043a058F8cFbb27D7c7E9",
+        "issuanceDate": "2026-03-11T16:16:37Z",
         "credentialSubject": {
-            "id": "did:eth:0xEBd34Af942F72e6C09905744EDb4896A54BDaBF9",
-            "address": "0xEBd34Af942F72e6C09905744EDb4896A54BDaBF9",
+            "id": "did:eth:0x42A0fe35b52828E714D3F1C6c9CC201397E8C262",
+            "address": "0x42A0fe35b52828E714D3F1C6c9CC201397E8C262",
             "claims": {
                 "role": "Authorized Hospital",
                 "region": "North_District",
@@ -15,5 +15,5 @@
             }
         }
     },
-    "signature": "dbc0b737e538e0d2e7dfeeafd5ba5fe61822f94eda4e5d89126bdaa0daf76c1c69525f357c66b413ece22b3c307e1ef4abc5c7f9432ab7d25e010895f0937fa41c"
+    "signature": "7c7fb46046acec13d5e5661bdc33efd75e4ebc95b77f06fe93307fc7e949a6587a977fa2fb01f98ffef8a4bb575cc28fc4c86e605b0fab4aa28b5c0d4a0e08e61b"
 }
