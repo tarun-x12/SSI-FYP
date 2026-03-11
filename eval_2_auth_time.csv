@@ -1,0 +1,3 @@
+Authentication Method,Time per Verification (Seconds),Cryptographic Security
+Standard Token Hash (Vanilla),0.000000,Low (Easily spoofed)
+Schnorr ZKP + SSI (Proposed),0.0392,Military-Grade (Zero-Knowledge)

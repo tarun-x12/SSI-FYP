@@ -119,7 +119,7 @@ def run_persistent_analyst():
 
         print("\n[FL] Waiting for client updates")
 
-        timeout = 150
+        timeout = 60
         start_wait = time.time()
 
         while True:

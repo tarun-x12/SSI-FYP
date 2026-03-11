@@ -4,14 +4,14 @@ from eth_account import Account
 Account.enable_unaudited_hdwallet_features()
 
 # 2. PASTE THE SAME MNEMONIC FROM YOUR GANACHE WORKSPACE HERE
-GANACHE_MNEMONIC ="car village firm sail extend swear super pen bomb mango trophy napkin"
+GANACHE_MNEMONIC ="decorate there prefer immense result easily glad lens acquire frozen alert potato"
 
 def get_ganache_key(index):
     """
     Derives the Private Key for a specific Ganache index.
     Index 0 = GA
     Index 1 = RI
-    Index 2 = LG
+    Index 2 = LGs
     ...
     """
     # Standard Ethereum Path: m/44'/60'/0'/0/INDEX

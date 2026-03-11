@@ -1,0 +1,4 @@
+Architecture,Payload Transmitted,Bandwidth per Round (3 Nodes),Total Bandwidth (50 Rounds)
+Centralized (Insecure),Raw Network Logs,2.24 MB,2.24 MB
+Vanilla FL (Weak Security),AI Model Weights,251.18 KB,12.26 MB
+DeCentra-Health (Zero-Trust),Weights + VC + ZKP,254.12 KB,12.41 MB

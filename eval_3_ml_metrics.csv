@@ -1,0 +1,4 @@
+Architecture,Privacy Protection,Accuracy,F1-Score,Recall (Threat Detection)
+Centralized (Baseline),None,95.70%,0.9587,0.9988
+Vanilla FL,Medium (Weights only),82.42%,0.7871,0.6497
+Proposed (FL + LDP + SSI),Absolute (Differential Privacy),98.48%,0.9851,0.9988
