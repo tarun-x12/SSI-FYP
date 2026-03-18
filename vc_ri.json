@@ -3,15 +3,15 @@
         "type": [
             "VerifiableCredential"
         ],
-        "issuer": "did:eth:0xDDDB0A231c96d298e9c601625414Feb90E8E9f18",
-        "issuanceDate": "2026-03-11T16:16:25Z",
+        "issuer": "did:eth:0x81279466948EfAf920EC4cE2e540d300D59EBd3E",
+        "issuanceDate": "2026-03-12T20:01:33Z",
         "credentialSubject": {
-            "id": "did:eth:0xb1A28aDEA17561F444D7B5FFb02aE17161e5b9E8",
-            "address": "0xb1A28aDEA17561F444D7B5FFb02aE17161e5b9E8",
+            "id": "did:eth:0x0E63813d93E25A61304E41Ce4240Dc3Bd847A634",
+            "address": "0x0E63813d93E25A61304E41Ce4240Dc3Bd847A634",
             "claims": {
                 "role": "Authorized Institute"
             }
         }
     },
-    "signature": "8e8e8c205dd045b6c4786baa5122437240786432e9b0e92f3d5dc29882850f0931f866ef262d746d8e5955438b3efccad25cb69ce8bcedf659fb9f8c919076971b"
+    "signature": "ab61f1e1b4aaaa5aca6577138d66ded099fe2cb6fafd85c94898d32129a47cc66e62de145f2254715b261e2c1be7228b850d85d87617cb43515a575d2f60b10b1b"
 }

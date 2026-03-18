@@ -55,7 +55,7 @@ def run_system_comparisons():
     proposed_bw = ((model_kb + security_payload_kb) * rounds * nodes) / 1024 
 
     bw_data = {
-        "Architecture": ["Centralized (Insecure)", "Vanilla FL (Weak Security)", "DeCentra-Health (Zero-Trust)"],
+        "Architecture": ["Normal ML", "Vanilla FL", "Proposed FL"],
         "Payload Transmitted": ["Raw Network Logs", "AI Model Weights", "Weights + VC + ZKP"],
         "Bandwidth per Round (3 Nodes)": [f"{total_csv_kb/1024:.2f} MB", f"{(model_kb*3):.2f} KB", f"{((model_kb+security_payload_kb)*3):.2f} KB"],
         "Total Bandwidth (50 Rounds)": [f"{cent_bw:.2f} MB", f"{vanilla_bw:.2f} MB", f"{proposed_bw:.2f} MB"]
@@ -87,7 +87,7 @@ def run_system_comparisons():
             pass
 
     time_data = {
-        "Authentication Method": ["Standard Token Hash (Vanilla)", "Schnorr ZKP + SSI (Proposed)"],
+        "Authentication Method": ["Standard Token Hash (Normal ML, Vanilla FL)", "Proposed SSI-FL"],
         "Time per Verification (Seconds)": [f"{vanilla_time:.6f}", f"{proposed_time:.4f}"],
         "Cryptographic Security": ["Low (Easily spoofed)", "Military-Grade (Zero-Knowledge)"]
     }
@@ -125,7 +125,7 @@ def generate_kfold_visuals_and_ml_metrics():
     corr_matrix = df_features.corr()
     plt.figure(figsize=(12, 10))
     sns.heatmap(corr_matrix, annot=False, cmap="Blues", cbar=True, square=True)
-    plt.title("Fig 6: Global Feature Correlation Heatmap", fontsize=16, fontweight='bold')
+    plt.title("Global Feature Correlation Heatmap", fontsize=16, fontweight='bold')
     plt.xticks(rotation=90, fontsize=8)
     plt.yticks(rotation=0, fontsize=8)
     plt.savefig("fig_6_correlation_heatmap_clean.png", dpi=300, bbox_inches='tight')
@@ -133,16 +133,16 @@ def generate_kfold_visuals_and_ml_metrics():
     print(" ✅ Created: fig_6_correlation_heatmap_clean.png")
 
     # 3. K-Fold CV
-    kf = StratifiedKFold(n_splits=4, shuffle=True, random_state=42)
+    kf = StratifiedKFold(n_splits=4, shuffle=True, random_state=32)
     epochs = 10
     criterion = nn.BCELoss()
 
     fig9, axes9 = plt.subplots(3, 4, figsize=(22, 16))
-    fig9.suptitle("Fig 9: 4-Fold Cross-Validation Confusion Matrices (k=1, 2, 3, 4)", fontsize=22, fontweight='bold', y=1.02)
+    fig9.suptitle(" 4-Fold Cross-Validation Confusion Matrices (k=1, 2, 3, 4)", fontsize=22, fontweight='bold', y=1.02)
     fig10, axes10 = plt.subplots(1, 4, figsize=(24, 6))
-    fig10.suptitle("Fig 10: 4-Fold Comparative ROC Analysis (Privacy-Utility Trade-off)", fontsize=20, fontweight='bold', y=1.05)
-
-    model_names = ["Centralized\n(No Privacy)", "Vanilla FL\n(Weak Privacy)", "DeCentra-Health\n(Absolute Privacy)"]
+    fig10.suptitle("4-Fold Comparative ROC Analysis (Privacy-Utility Trade-off)", fontsize=20, fontweight='bold', y=1.05)
+    epoch = 4
+    model_names = ["Normal ML", "Vanilla FL", "Proposed SSI-FL"]
     
     # Trackers for ML CSV
     metrics = {"cent": {"acc":[], "f1":[], "rec":[]}, "van": {"acc":[], "f1":[], "rec":[]}, "dec": {"acc":[], "f1":[], "rec":[]}}
@@ -160,14 +160,14 @@ def generate_kfold_visuals_and_ml_metrics():
         # CENTRALIZED
         model_cent = HybridDL(input_dim)
         opt_cent = torch.optim.Adam(model_cent.parameters(), lr=0.001)
-        for _ in range(epochs):
+        for _ in range(epoch):
             opt_cent.zero_grad()
             criterion(model_cent(X_train_t), y_train_t).backward()
             opt_cent.step()
         with torch.no_grad():
             prob_cent = model_cent(X_test_t).squeeze().numpy()
             pred_cent = (prob_cent > 0.5).astype(int)
-            metrics["cent"]["acc"].append(accuracy_score(y_test, pred_cent))
+            metrics["cent"]["acc"].append(accuracy_score(y_test, pred_cent)
             metrics["cent"]["f1"].append(f1_score(y_test, pred_cent, zero_division=0))
             metrics["cent"]["rec"].append(recall_score(y_test, pred_cent, zero_division=0))
 
@@ -214,9 +214,9 @@ def generate_kfold_visuals_and_ml_metrics():
         fpr_c, tpr_c, _ = roc_curve(y_test, prob_cent)
         fpr_v, tpr_v, _ = roc_curve(y_test, prob_van)
         fpr_d, tpr_d, _ = roc_curve(y_test, prob_dec)
-        axes10[fold].plot(fpr_c, tpr_c, color='#9467bd', lw=2.5, label=f'Centralized (AUC = {auc(fpr_c, tpr_c):.3f})')
+        axes10[fold].plot(fpr_c, tpr_c, color='#9467bd', lw=2.5, label=f'Normal ML (AUC = {auc(fpr_c, tpr_c):.3f})')
         axes10[fold].plot(fpr_v, tpr_v, color='#2ca02c', lw=2.5, linestyle='-.', label=f'Vanilla FL (AUC = {auc(fpr_v, tpr_v):.3f})')
-        axes10[fold].plot(fpr_d, tpr_d, color='#ff7f0e', lw=3, label=f'DeCentra (AUC = {auc(fpr_d, tpr_d):.3f})')
+        axes10[fold].plot(fpr_d, tpr_d, color='#ff7f0e', lw=3, label=f'Proposed SSI-FL (AUC = {auc(fpr_d, tpr_d):.3f})')
         axes10[fold].plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--')
         axes10[fold].set_xlim([-0.01, 0.4])
         axes10[fold].set_ylim([0.6, 1.02])
@@ -239,7 +239,7 @@ def generate_kfold_visuals_and_ml_metrics():
 
     # 4. Save Averaged ML Metrics CSV
     ml_data = {
-        "Architecture": ["Centralized (Baseline)", "Vanilla FL", "Proposed (FL + LDP + SSI)"],
+        "Architecture": ["Normal ML", "Vanilla FL", "Proposed SSI-FL"],
         "Privacy Protection": ["None", "Medium (Weights only)", "Absolute (Differential Privacy)"],
         "Accuracy": [f"{np.mean(metrics['cent']['acc'])*100:.2f}%", f"{np.mean(metrics['van']['acc'])*100:.2f}%", f"{np.mean(metrics['dec']['acc'])*100:.2f}%"],
         "F1-Score": [f"{np.mean(metrics['cent']['f1']):.4f}", f"{np.mean(metrics['van']['f1']):.4f}", f"{np.mean(metrics['dec']['f1']):.4f}"],
@@ -266,15 +266,15 @@ def generate_combined_dashboard():
         return
 
     fig, axes = plt.subplots(1, 3, figsize=(22, 6))
-    fig.suptitle("DeCentra-Health: Comprehensive System Evaluation Dashboard", fontsize=20, fontweight='bold', y=1.05)
+    fig.suptitle("Comprehensive System Evaluation Dashboard", fontsize=20, fontweight='bold', y=1.05)
 
     # SUBPLOT 1: BANDWIDTH
     df_bw = pd.read_csv("eval_1_bandwidth.csv")
-    archs_bw = ["Centralized", "Vanilla FL", "DeCentra-Health\n(Proposed)"]
+    archs_bw = ["Normal ML", "Vanilla FL", "Proposed SSI-FL"]
     bw_vals = df_bw["Total Bandwidth (50 Rounds)"].apply(parse_val).tolist()
 
-    axes[0].plot(archs_bw, bw_vals, marker='o', color='#007acc', linewidth=3, markersize=10, linestyle='-')
-    axes[0].set_title("(a) Network Overhead (50 Rounds)", fontsize=14, fontweight='bold')
+    axes[0].plot(archs_bw, bw_vals, marker='o', color='#007acc', linewidth=3, markersize=10, linestyle='')
+    axes[0].set_title("(a) Network Overhead ", fontsize=14, fontweight='bold')
     axes[0].set_ylabel("Megabytes (MB)", fontsize=12)
     axes[0].grid(True, linestyle='--', alpha=0.7)
     for i, v in enumerate(bw_vals):
@@ -283,10 +283,10 @@ def generate_combined_dashboard():
 
     # SUBPLOT 2: AUTHENTICATION TIME
     df_time = pd.read_csv("eval_2_auth_time.csv")
-    methods = ["Standard Hash\n(Insecure)", "SSI + ZKP\n(Proposed)"]
+    methods = ["Standard Hash\n(Normal ML, Vanila FL)", "Proposed SSI-FL"]
     times = df_time["Time per Verification (Seconds)"].tolist()
 
-    axes[1].plot(methods, times, marker='s', color='#d62728', linewidth=3, markersize=10, linestyle='--')
+    axes[1].plot(methods, times, marker='s', color='#d62728', linewidth=3, markersize=10, linestyle='')
     axes[1].set_title("(b) Security Computational Overhead", fontsize=14, fontweight='bold')
     axes[1].set_ylabel("Seconds (s)", fontsize=12)
     axes[1].grid(True, linestyle='--', alpha=0.7)
@@ -296,20 +296,20 @@ def generate_combined_dashboard():
 
     # SUBPLOT 3: ML METRICS
     df_ml = pd.read_csv("eval_3_ml_metrics.csv")
-    archs_ml = ["Centralized", "Vanilla FL", "DeCentra-Health\n(Proposed)"]
+    archs_ml = ["Normal ML", "Vanilla FL", "Proposed SSI-FL"]
     
     acc = df_ml["Accuracy"].apply(parse_val).tolist()
     f1 = (df_ml["F1-Score"] * 100).tolist()
     rec = (df_ml["Recall (Threat Detection)"] * 100).tolist()
 
-    axes[2].plot(archs_ml, rec, marker='^', color='#ff7f0e', linewidth=3, markersize=10, label='Recall')
-    axes[2].plot(archs_ml, acc, marker='o', color='#9467bd', linewidth=3, markersize=9, label='Accuracy')
-    axes[2].plot(archs_ml, f1, marker='s', color='#2ca02c', linewidth=3, markersize=9, label='F1-Score')
+    axes[2].plot(archs_ml, rec, marker='^', color='#ff7f0e', linewidth=3, markersize=10, linestyle='', label='Recall')
+    axes[2].plot(archs_ml, acc, marker='o', color='#9467bd', linewidth=3, markersize=9, linestyle='', label='Accuracy')
+    axes[2].plot(archs_ml, f1, marker='s', color='#2ca02c', linewidth=3, markersize=9, linestyle='', label='F1-Score')
     
     axes[2].set_title("(c) Privacy-Utility Trade-off Trajectory", fontsize=14, fontweight='bold')
     axes[2].set_ylabel("Score (%)", fontsize=12)
     axes[2].grid(True, linestyle='--', alpha=0.7)
-    axes[2].legend(loc='lower left')
+    axes[2].legend(loc='upper left')
 
     y_min = min(min(acc), min(f1), min(rec)) - 5
     axes[2].set_ylim(y_min, 105)
@@ -323,7 +323,6 @@ def generate_combined_dashboard():
     plt.savefig("graph_combined_dashboard.png", dpi=300, bbox_inches='tight', pad_inches=0.3)
     plt.close()
     print(" ✅ Created: graph_combined_dashboard.png")
-    print("\n🎉 ALL DONE! Your complete presentation suite has been generated in a single run.")
 
 if __name__ == "__main__":
     run_system_comparisons()

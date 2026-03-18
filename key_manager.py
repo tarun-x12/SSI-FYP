@@ -4,7 +4,7 @@ from eth_account import Account
 Account.enable_unaudited_hdwallet_features()
 
 # 2. PASTE THE SAME MNEMONIC FROM YOUR GANACHE WORKSPACE HERE
-GANACHE_MNEMONIC ="student wreck either rib heart shaft hour spray core until address ginger"
+GANACHE_MNEMONIC ="chief south midnight memory foam drum glare lawn hurt bulb antique walk"
 
 def get_ganache_key(index):
     """

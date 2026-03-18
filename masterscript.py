@@ -158,33 +158,50 @@ def save_round_metrics():
     df.to_csv("round_metrics.csv", index=False)
 
 # -------------------------------------------------
-# FIG 7
+# FIG 7 – EFFICIENCY (3 LINE GRAPHS)
 # -------------------------------------------------
 
 def plot_efficiency():
 
     df = pd.read_csv("round_metrics.csv")
 
-    final = df.iloc[-1]
+    rounds = df["Round"]
+    comp = df["Execution_Time"]
+    comm = df["Communication_Bits"] / 1e6
+    msgs = rounds * NUM_OWNERS * 2
 
-    comp = final["Execution_Time"]
-    comm = final["Communication_Bits"] / 1e6
-    msgs = final["Round"] * NUM_OWNERS * 2
-
-    labels = ["Computation(s)", "Communication(MB)", "Messages"]
-
-    values = [comp, comm, msgs]
-
+    # Computation Efficiency
     plt.figure(figsize=(8,5))
-    plt.bar(labels, values)
-
-    plt.title("Fig 7 – Efficiency Analysis")
+    plt.plot(rounds, comp)
+    plt.xlabel("FL Rounds")
+    plt.ylabel("Execution Time (s)")
+    plt.title("Fig 7a – Computation Efficiency")
     plt.grid(True)
+    plt.savefig("fig7a_computation_efficiency.png")
+    plt.close()
 
-    plt.savefig("fig7_efficiency.png")
+    # Communication Efficiency
+    plt.figure(figsize=(8,5))
+    plt.plot(rounds, comm)
+    plt.xlabel("FL Rounds")
+    plt.ylabel("Communication (MB)")
+    plt.title("Fig 7b – Communication Efficiency")
+    plt.grid(True)
+    plt.savefig("fig7b_communication_efficiency.png")
+    plt.close()
+
+    # Message Efficiency
+    plt.figure(figsize=(8,5))
+    plt.plot(rounds, msgs)
+    plt.xlabel("FL Rounds")
+    plt.ylabel("Messages")
+    plt.title("Fig 7c – Message Efficiency")
+    plt.grid(True)
+    plt.savefig("fig7c_message_efficiency.png")
+    plt.close()
 
 # -------------------------------------------------
-# FIG 8
+# FIG 8 – SCALABILITY (2 GRAPHS)
 # -------------------------------------------------
 
 def plot_scalability():
@@ -195,22 +212,25 @@ def plot_scalability():
     latency = df["Latency"]
     throughput = df["Throughput"]
 
-    fig, ax1 = plt.subplots(figsize=(8,5))
-
-    ax1.plot(rounds, latency, color='blue')
-    ax1.set_xlabel("FL Rounds")
-    ax1.set_ylabel("Latency (s)", color='blue')
-
-    ax2 = ax1.twinx()
-
-    ax2.plot(rounds, throughput, color='orange')
-    ax2.set_ylabel("Throughput (round/s)", color='orange')
-
-    plt.title("Fig 8 – Scalability Evaluation")
-
+    # Latency Graph
+    plt.figure(figsize=(8,5))
+    plt.plot(rounds, latency)
+    plt.xlabel("FL Rounds")
+    plt.ylabel("Latency (s)")
+    plt.title("Fig 8a – Latency Scalability")
     plt.grid(True)
+    plt.savefig("fig8a_latency_scalability.png")
+    plt.close()
 
-    plt.savefig("fig8_scalability.png")
+    # Throughput Graph
+    plt.figure(figsize=(8,5))
+    plt.plot(rounds, throughput)
+    plt.xlabel("FL Rounds")
+    plt.ylabel("Throughput (round/s)")
+    plt.title("Fig 8b – Throughput Scalability")
+    plt.grid(True)
+    plt.savefig("fig8b_throughput_scalability.png")
+    plt.close()
 
 # -------------------------------------------------
 # RUNTIME SUMMARY
@@ -246,5 +266,8 @@ if __name__ == "__main__":
 
     print("\nGenerated files:")
     print("round_metrics.csv")
-    print("fig7_efficiency.png")
-    print("fig8_scalability.png")
+    print("fig7a_computation_efficiency.png")
+    print("fig7b_communication_efficiency.png")
+    print("fig7c_message_efficiency.png")
+    print("fig8a_latency_scalability.png")
+    print("fig8b_throughput_scalability.png")

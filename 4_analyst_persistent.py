@@ -344,9 +344,9 @@ def run_persistent_analyst():
 
         round_number += 1
 
-        print("\nNext round starting in 10 seconds")
+        print("\nNext round starting in 3 seconds")
 
-        time.sleep(10)
+        time.sleep(3)
 
 
 if __name__ == "__main__":

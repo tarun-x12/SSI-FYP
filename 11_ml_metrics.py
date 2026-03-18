@@ -142,32 +142,8 @@ def evaluate_ml_metrics():
     # ROC CURVE
     # --------------------------------------------------
 
-    fpr, tpr, thresholds = roc_curve(y_test_np, probs)
+    
 
-    roc_auc = auc(fpr, tpr)
-
-    print(f"\nROC AUC Score: {roc_auc:.4f}")
-
-    plt.figure()
-
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.3f}")
-
-    plt.plot([0,1],[0,1],'r--')
-
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("ROC Curve - Federated IDS Model")
-
-    plt.legend(loc="lower right")
-
-    plt.grid(True)
-
-    plt.savefig("roc_curve.png")
-
-    print("ROC curve saved as roc_curve.png")
-
-    # show the graph
-    plt.show()
 
     # --------------------------------------------------
     # BASELINE MODEL
@@ -183,7 +159,7 @@ def evaluate_ml_metrics():
 
     model_baseline.train()
 
-    for epoch in range(300):
+    for epoch in range(30):
 
         optimizer.zero_grad()
 

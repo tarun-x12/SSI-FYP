@@ -1,24 +1,26 @@
 import threading
 import time
 
-def start_relay_keepalive(entity, interval=8):
+def start_relay_keepalive(entity, interval=20):
 
     def keepalive_loop():
 
         while True:
             try:
-                if hasattr(entity, "relay_ping"):
-                    entity.relay_ping()
 
-                elif hasattr(entity, "send_ping"):
-                    entity.send_ping()
+                # only ping if connection exists
+                if hasattr(entity, "connection") and entity.connection:
 
-                elif hasattr(entity, "connection") and hasattr(entity.connection, "ping"):
-                    entity.connection.ping()
+                    if hasattr(entity.connection, "ping"):
+                        entity.connection.ping()
 
-                else:
-                    # fallback: simple heartbeat log
-                    print("[KeepAlive] relay ping")
+                    elif hasattr(entity, "relay_ping"):
+                        entity.relay_ping()
+
+                    elif hasattr(entity, "send_ping"):
+                        entity.send_ping()
+
+                # no connection → do nothing (prevents spam)
 
             except Exception:
                 pass
